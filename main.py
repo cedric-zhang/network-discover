@@ -24,6 +24,10 @@ async def assets():
 async def health_check():
     return {"status": "ok", "version": "0.2.0"}
 
+# 注册 API 路由
+from app.routers import scan
+app.include_router(scan.router, prefix="/api", tags=["scan"])
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
