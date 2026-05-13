@@ -12,6 +12,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def index():
     return FileResponse("index.html")
 
+@app.get("/index.html", response_class=HTMLResponse)
+async def index_html():
+    return FileResponse("index.html")
+
 @app.get("/scan.html", response_class=HTMLResponse)
 async def scan():
     return FileResponse("scan.html")
