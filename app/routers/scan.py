@@ -1,35 +1,30 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import Dict, List
 from datetime import datetime
 import uuid
-from app.models import ScanSubmitRequest, ScanTaskResponse, ScanOptions
-import asyncio
+from app.models import ScanSubmitRequest, ScanTaskResponse, ScanOptions, ScanResultResponse
+from app.services.task_manager import task_manager
+from app.services.scanner import scanner_service
+
 
 router = APIRouter()
 
-# 使用内存字典存储任务 - 模拟数据库
-tasks_db: Dict[str, dict] = {}
 
 @router.post("/scan/submit", response_model=ScanTaskResponse)
-async def submit_scan(request: ScanSubmitRequest):
+async def submit_scan(request: ScanSubmitRequest, background_tasks: BackgroundTasks):
     """提交扫描目标"""
-    # 生成任务ID
-    task_id = f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    # 创建任务
+    task_id = task_manager.create_task(request)
 
-    # 创建任务对象
-    task = {
-        "task_id": task_id,
-        "status": "pending",  # 仅返回pending，不执行实际扫描
-        "target": request.target,
-        "scan_options": request.scan_options.dict(),
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat(),
-        "message": "扫描任务已提交"
-    }
+    # 将任务信息存储到scanner_service的active_scans中，便于更新状态
+    task_details = task_manager.get_task(task_id)
+    scanner_service.active_scans[task_id] = task_details
 
-    # 存储到内存中
-    tasks_db[task_id] = task
+    # 将扫描任务添加到后台任务队列
+    background_tasks.add_task(scanner_service.run_scan, task_id, request)
 
+    # 返回任务信息
+    task = task_manager.get_task(task_id)
     return ScanTaskResponse(
         task_id=task["task_id"],
         status=task["status"],
@@ -40,23 +35,27 @@ async def submit_scan(request: ScanSubmitRequest):
         message=task["message"]
     )
 
+
 @router.get("/scan/tasks")
 async def get_scan_tasks():
     """获取所有扫描任务列表"""
-    task_list = list(tasks_db.values())
+    from app.services.scanner import scanner_service
+    task_list = list(scanner_service.active_scans.values())
 
     return {
         "tasks": task_list,
         "total": len(task_list)
     }
 
+
 @router.get("/scan/tasks/{task_id}", response_model=ScanTaskResponse)
 async def get_scan_task(task_id: str):
     """获取单个扫描任务详情"""
-    if task_id not in tasks_db:
+    from app.services.scanner import scanner_service
+    if task_id not in scanner_service.active_scans:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task = tasks_db[task_id]
+    task = scanner_service.active_scans[task_id]
     return ScanTaskResponse(
         task_id=task["task_id"],
         status=task["status"],
@@ -66,3 +65,12 @@ async def get_scan_task(task_id: str):
         updated_at=task["updated_at"],
         message=task.get("message")
     )
+
+
+@router.get("/scan/tasks/{task_id}/result", response_model=ScanResultResponse)
+async def get_scan_result(task_id: str):
+    """获取扫描结果"""
+    result = task_manager.get_scan_result(task_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return result
