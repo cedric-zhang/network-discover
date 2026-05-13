@@ -1,75 +1,105 @@
 from pydantic import BaseModel, field_validator
+from typing import List, Optional
 from datetime import datetime
-from typing import Optional, List
 import ipaddress
-from enum import Enum
+import re
+from sqlalchemy import Column, Integer, String, DateTime, JSON
+from app.database import Base
 
 
-class ScheduleType(str, Enum):
-    now = "now"
-    daily = "每天"
-    weekly = "每周"
-    custom = "自定义"
+# Pydantic Models (for API)
+class PortInfo(BaseModel):
+    """端口信息模型"""
+    port: int
+    protocol: str
+    service: str
+    product: str
+
+
+class HostInfo(BaseModel):
+    """主机信息模型"""
+    ip: str
+    status: str
+    os: str
+    vendor: str
+    hostname: str
+    ports: List[PortInfo]
 
 
 class ScanOptions(BaseModel):
+    """扫描选项模型"""
     port_scan: bool = True
     os_detection: bool = True
     vendor_detection: bool = True
 
 
 class ScanSubmitRequest(BaseModel):
+    """扫描提交请求模型"""
     target: str
     scan_options: ScanOptions = ScanOptions()
-    schedule: ScheduleType = ScheduleType.now
 
-    @field_validator('target')
+    @field_validator("target")
     @classmethod
     def validate_target(cls, v):
-        """验证 IP 或 CIDR 格式"""
-        v = v.strip()
         if not v:
-            raise ValueError('目标不能为空')
-        # 支持逗号分隔多 IP
-        targets = [t.strip() for t in v.split(',')]
-        for t in targets:
+            raise ValueError("Target cannot be empty")
+
+        # 检查是否为有效的IP地址或CIDR范围
+        try:
+            # 尝试解析为IP地址
+            ipaddress.IPv4Address(v)
+        except ValueError:
             try:
-                if '/' in t:
-                    ipaddress.ip_network(t, strict=False)
-                else:
-                    ipaddress.ip_address(t)
+                # 尝试解析为CIDR范围
+                ipaddress.IPv4Network(v, strict=False)
             except ValueError:
-                raise ValueError(f'无效的 IP 地址或网段: {t}')
+                # 不是有效的IP地址或CIDR，可以是域名
+                if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9])*$", v):
+                    raise ValueError(f"Invalid target: {v}. Must be a valid IP, CIDR range, or hostname")
+
         return v
 
 
 class ScanTaskResponse(BaseModel):
+    """扫描任务响应模型"""
     task_id: str
     status: str
     target: str
-    scan_options: Optional[ScanOptions] = None
+    scan_options: ScanOptions
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str
     message: Optional[str] = None
 
 
-class PortInfo(BaseModel):
-    port: int
-    protocol: str
-    service: str
-    product: str = ""
-
-
-class HostInfo(BaseModel):
-    ip: str
-    status: str
-    os: str = ""
-    vendor: str = ""
-    hostname: str = ""
-    ports: List[PortInfo] = []
-
-
 class ScanResultResponse(BaseModel):
+    """扫描结果响应模型"""
     task_id: str
     status: str
-    hosts: List[HostInfo] = []
+    hosts: List[HostInfo]
+
+
+# SQLAlchemy Models (for Database)
+class IPAsset(Base):
+    __tablename__ = "ip_assets"
+    
+    ip = Column(String, primary_key=True)
+    status = Column(String, default="unknown")  # online / offline / unknown
+    hostname = Column(String, default="")
+    os_name = Column(String, default="")
+    vendor = Column(String, default="")
+    mac_address = Column(String, default="")
+    open_ports = Column(JSON, default=list)  # 存 JSON 列表
+    last_scan_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ScanTask(Base):
+    __tablename__ = "scan_tasks"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String, unique=True, index=True)
+    target = Column(String)
+    status = Column(String, default="pending")
+    result_summary = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

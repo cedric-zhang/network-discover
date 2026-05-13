@@ -43,3 +43,5 @@ logs/
 .env
 .env.local
 .env.backup
+data/network.db
+*.db
