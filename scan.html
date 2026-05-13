@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络设备发现平台 - 扫描配置</title>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="brand">网络设备发现平台 v0.1.0</div>
+        <div class="links">
+            <a href="index.html">仪表盘</a>
+            <a href="scan.html" class="active">扫描</a>
+            <a href="assets.html">资产</a>
+            <a href="#">设置</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-content">
+            <div class="page-title">扫描配置</div>
+            <div class="page-subtitle">配置扫描目标和参数</div>
+
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <form>
+                    <div class="form-group">
+                        <div class="form-label">扫描类型</div>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="scanType" value="subnet" checked>
+                                <span>网段扫描</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="scanType" value="single">
+                                <span>单 IP 扫描</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">目标网段</div>
+                        <input type="text" class="input" placeholder="192.168.1.0/24">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">扫描选项</div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="portScan" checked>
+                                <span>端口扫描</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="osDetect" checked>
+                                <span>OS 识别</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="vendorDetect" checked>
+                                <span>厂商识别</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">调度方式</div>
+                        <select class="select">
+                            <option>立即执行</option>
+                            <option>每天</option>
+                            <option>每周</option>
+                            <option>自定义</option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn-primary">开始扫描</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/app.js"></script>
+</body>
+</html>

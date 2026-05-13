@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络设备发现平台 - 资产清单</title>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="brand">网络设备发现平台 v0.1.0</div>
+        <div class="links">
+            <a href="index.html">仪表盘</a>
+            <a href="scan.html">扫描</a>
+            <a href="assets.html" class="active">资产</a>
+            <a href="#">设置</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-content">
+            <div class="page-title">资产清单</div>
+            <div class="page-subtitle">已发现 1,234 个 IP 地址</div>
+
+            <!-- 筛选栏 -->
+            <div class="filter-bar">
+                <div class="filter-input">
+                    <input type="text" class="input" placeholder="搜索 IP...">
+                </div>
+                <div class="filter-input">
+                    <select class="select">
+                        <option>全部状态</option>
+                        <option>在线</option>
+                        <option>离线</option>
+                        <option>未知</option>
+                    </select>
+                </div>
+                <div class="filter-input">
+                    <select class="select">
+                        <option>全部厂商</option>
+                        <option>华为</option>
+                        <option>思科</option>
+                        <option>H3C</option>
+                        <option>联想</option>
+                        <option>TP-Link</option>
+                    </select>
+                </div>
+                <button class="filter-btn">搜索</button>
+            </div>
+
+            <!-- 表格 -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>IP 地址</th>
+                            <th>状态</th>
+                            <th>主机名</th>
+                            <th>操作系统</th>
+                            <th>厂商</th>
+                            <th>开放端口</th>
+                            <th>最后扫描时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>192.168.1.1</td>
+                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
+                            <td>router.home</td>
+                            <td>Linux</td>
+                            <td>华为</td>
+                            <td>22, 80, 443</td>
+                            <td>今天 10:30</td>
+                        </tr>
+                        <tr>
+                            <td>192.168.1.2</td>
+                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
+                            <td>pc-01</td>
+                            <td>Windows 10</td>
+                            <td>联想</td>
+                            <td>139, 445, 3389</td>
+                            <td>今天 09:15</td>
+                        </tr>
+                        <tr>
+                            <td>192.168.1.3</td>
+                            <td><span class="status-badge offline"><span class="status-dot"></span> 离线</span></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>昨天 16:45</td>
+                        </tr>
+                        <tr>
+                            <td>192.168.1.4</td>
+                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
+                            <td>printer</td>
+                            <td>Embedded</td>
+                            <td>HP</td>
+                            <td>80, 9100</td>
+                            <td>昨天 14:22</td>
+                        </tr>
+                        <tr>
+                            <td>192.168.1.5</td>
+                            <td><span class="status-badge unknown"><span class="status-dot"></span> 未知</span></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>前天 11:30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <a href="#">&laquo; 上一页</a>
+                <a href="#" class="current">1</a>
+                <a href="#">2</a>
+                <a href="#">3</a>
+                <span>...</span>
+                <a href="#">42</a>
+                <a href="#">下一页 &raquo;</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/app.js"></script>
+</body>
+</html>
