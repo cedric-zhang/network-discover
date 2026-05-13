@@ -51,3 +51,25 @@ class ScanTaskResponse(BaseModel):
     created_at: str
     updated_at: Optional[str] = None
     message: Optional[str] = None
+
+
+class PortInfo(BaseModel):
+    port: int
+    protocol: str
+    service: str
+    product: str = ""
+
+
+class HostInfo(BaseModel):
+    ip: str
+    status: str
+    os: str = ""
+    vendor: str = ""
+    hostname: str = ""
+    ports: List[PortInfo] = []
+
+
+class ScanResultResponse(BaseModel):
+    task_id: str
+    status: str
+    hosts: List[HostInfo] = []
