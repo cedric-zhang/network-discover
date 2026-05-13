@@ -1,0 +1,29 @@
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from typing import Dict, Any
+
+app = FastAPI(title="网络设备发现平台", version="0.2.0")
+
+# 挂载静态文件
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    return FileResponse("index.html")
+
+@app.get("/scan.html", response_class=HTMLResponse)
+async def scan():
+    return FileResponse("scan.html")
+
+@app.get("/assets.html", response_class=HTMLResponse)
+async def assets():
+    return FileResponse("assets.html")
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "version": "0.2.0"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
