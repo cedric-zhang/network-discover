@@ -582,3 +582,137 @@ tbody tr:last-child td {
     flex-wrap: wrap;
   }
 }
+/* === 资产详情页样式 === */
+.asset-header {
+  margin-bottom: var(--space-8);
+}
+
+.asset-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.asset-ip {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.asset-meta {
+  display: flex;
+  gap: var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+}
+
+.meta-item {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}
+
+.section-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+}
+
+.ports-section, .scan-history-section {
+  margin-bottom: var(--space-8);
+}
+
+.ports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.port-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: center;
+  transition: var(--transition-normal);
+}
+
+.port-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.port-number {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--accent-cyan);
+}
+
+.port-protocol {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}
+
+.port-service {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+}
+
+.scan-info {
+  display: flex;
+  gap: var(--space-6);
+  color: var(--text-secondary);
+}
+
+.info-item {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  color: white;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-base);
+  transition: var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: var(--text-base);
+  transition: var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.loading, .empty-state {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--space-8);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}

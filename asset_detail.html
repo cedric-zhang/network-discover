@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络设备发现平台 - 资产详情</title>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="brand">网络设备发现平台 v0.8.0</div>
+        <div class="links">
+            <a href="index.html">仪表盘</a>
+            <a href="scan.html">扫描</a>
+            <a href="assets.html" class="active">资产</a>
+            <a href="#">设置</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-content">
+            <!-- 资产基本信息 -->
+            <div class="asset-header">
+                <div class="asset-title-row">
+                    <h1 class="asset-ip" id="asset-ip">加载中...</h1>
+                    <span class="status-badge" id="status-badge"><span class="status-dot"></span> 未知</span>
+                </div>
+                <div class="asset-meta" id="asset-meta">
+                    <span class="meta-item" id="hostname">主机名: -</span>
+                    <span class="meta-item" id="os">操作系统: -</span>
+                    <span class="meta-item" id="vendor">厂商: -</span>
+                </div>
+            </div>
+
+            <!-- 端口详情卡片 -->
+            <div class="ports-section">
+                <h2 class="section-title">开放端口</h2>
+                <div class="ports-grid" id="ports-grid">
+                    <!-- 端口卡片将通过 JS 动态生成 -->
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 扫描历史 -->
+            <div class="scan-history-section">
+                <h2 class="section-title">扫描历史</h2>
+                <div class="scan-info" id="scan-info">
+                    <span class="info-item" id="last-scan">最后扫描时间: -</span>
+                    <span class="info-item" id="created">首次发现时间: -</span>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+                <button class="btn-primary" onclick="rescanAsset()">重新扫描</button>
+                <button class="btn-secondary" onclick="goBack()">返回列表</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 从 URL 获取 IP 参数
+        function getIPFromURL() {
+            const path = window.location.pathname;
+            const match = path.match(/\/asset\/(.+)$/);
+            return match ? match[1] : null;
+        }
+
+        // 加载资产详情
+        async function loadAssetDetail() {
+            const ip = getIPFromURL();
+            if (!ip) {
+                document.getElementById('asset-ip').textContent = '无效的 IP 地址';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/assets/' + ip);
+                if (!response.ok) {
+                    document.getElementById('asset-ip').textContent = '资产不存在: ' + ip;
+                    return;
+                }
+
+                const data = await response.json();
+                
+                // 更新基本信息
+                document.getElementById('asset-ip').textContent = data.ip;
+                
+                // 更新状态徽章
+                const statusBadge = document.getElementById('status-badge');
+                const statusDot = statusBadge.querySelector('.status-dot');
+                if (data.status === 'up' || data.status === 'online') {
+                    statusBadge.className = 'status-badge online';
+                    statusBadge.innerHTML = '<span class="status-dot"></span> 在线';
+                } else if (data.status === 'down' || data.status === 'offline') {
+                    statusBadge.className = 'status-badge offline';
+                    statusBadge.innerHTML = '<span class="status-dot"></span> 离线';
+                } else {
+                    statusBadge.className = 'status-badge unknown';
+                    statusBadge.innerHTML = '<span class="status-dot"></span> 未知';
+                }
+
+                // 更新元数据
+                document.getElementById('hostname').textContent = '主机名: ' + (data.hostname || '-');
+                document.getElementById('os').textContent = '操作系统: ' + (data.os_name || '-');
+                document.getElementById('vendor').textContent = '厂商: ' + (data.vendor || '-');
+
+                // 更新端口列表
+                const portsGrid = document.getElementById('ports-grid');
+                if (data.open_ports && data.open_ports.length > 0) {
+                    portsGrid.innerHTML = '';
+                    data.open_ports.forEach(portStr => {
+                        // 解析端口字符串 (如 "22/tcp")
+                        const [portNum, protocol] = portStr.split('/');
+                        const portCard = document.createElement('div');
+                        portCard.className = 'port-card';
+                        portCard.innerHTML = '
+                            <div class="port-number">' + portNum + '</div>
+                            <div class="port-protocol">' + (protocol || 'tcp') + '</div>
+                            <div class="port-service">服务详情待完善</div>
+                        ';
+                        portsGrid.appendChild(portCard);
+                    });
+                } else {
+                    portsGrid.innerHTML = '<div class="empty-state">未检测到开放端口</div>';
+                }
+
+                // 更新扫描时间
+                document.getElementById('last-scan').textContent = '最后扫描时间: ' + 
+                    (data.last_scan_at ? formatDateTime(data.last_scan_at) : '-');
+                document.getElementById('created').textContent = '首次发现时间: ' + 
+                    (data.created_at ? formatDateTime(data.created_at) : '-');
+
+            } catch (error) {
+                console.error('加载资产详情失败:', error);
+                document.getElementById('asset-ip').textContent = '加载失败';
+            }
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // 重新扫描
+        async function rescanAsset() {
+            const ip = getIPFromURL();
+            if (!ip) return;
+
+            try {
+                const response = await fetch('/api/scan/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target: ip,
+                        scan_options: { port_scan: true, os_detection: true, vendor_detection: true }
+                    })
+                });
+                const data = await response.json();
+                alert('扫描任务已提交: ' + data.task_id);
+            } catch (error) {
+                alert('提交扫描失败: ' + error.message);
+            }
+        }
+
+        // 返回列表
+        function goBack() {
+            window.location.href = 'assets.html';
+        }
+
+        // 页面加载时执行
+        loadAssetDetail();
+    </script>
+</body>
+</html>

@@ -9,7 +9,7 @@
 <body>
     <!-- 顶部导航栏 -->
     <nav class="navbar">
-        <div class="brand">网络设备发现平台 v0.7.1</div>
+        <div class="brand">网络设备发现平台 v0.8.0</div>
         <div class="links">
             <a href="index.html">仪表盘</a>
             <a href="scan.html">扫描</a>
@@ -21,32 +21,24 @@
     <div class="container">
         <div class="page-content">
             <div class="page-title">资产清单</div>
-            <div class="page-subtitle">已发现 1,234 个 IP 地址</div>
+            <div class="page-subtitle" id="asset-count">已发现资产加载中...</div>
 
             <!-- 筛选栏 -->
             <div class="filter-bar">
                 <div class="filter-input">
-                    <input type="text" class="input" placeholder="搜索 IP...">
+                    <input type="text" class="input" id="search-input" placeholder="搜索 IP 或主机名...">
                 </div>
                 <div class="filter-input">
-                    <select class="select">
-                        <option>全部状态</option>
-                        <option>在线</option>
-                        <option>离线</option>
-                        <option>未知</option>
+                    <select class="select" id="status-filter">
+                        <option value="">全部状态</option>
+                        <option value="up">在线</option>
+                        <option value="online">在线</option>
+                        <option value="down">离线</option>
+                        <option value="offline">离线</option>
+                        <option value="unknown">未知</option>
                     </select>
                 </div>
-                <div class="filter-input">
-                    <select class="select">
-                        <option>全部厂商</option>
-                        <option>华为</option>
-                        <option>思科</option>
-                        <option>H3C</option>
-                        <option>联想</option>
-                        <option>TP-Link</option>
-                    </select>
-                </div>
-                <button class="filter-btn">搜索</button>
+                <button class="filter-btn" onclick="loadAssets()">搜索</button>
             </div>
 
             <!-- 表格 -->
@@ -63,69 +55,101 @@
                             <th>最后扫描时间</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td>192.168.1.1</td>
-                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
-                            <td>router.home</td>
-                            <td>Linux</td>
-                            <td>华为</td>
-                            <td>22, 80, 443</td>
-                            <td>今天 10:30</td>
-                        </tr>
-                        <tr>
-                            <td>192.168.1.2</td>
-                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
-                            <td>pc-01</td>
-                            <td>Windows 10</td>
-                            <td>联想</td>
-                            <td>139, 445, 3389</td>
-                            <td>今天 09:15</td>
-                        </tr>
-                        <tr>
-                            <td>192.168.1.3</td>
-                            <td><span class="status-badge offline"><span class="status-dot"></span> 离线</span></td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>昨天 16:45</td>
-                        </tr>
-                        <tr>
-                            <td>192.168.1.4</td>
-                            <td><span class="status-badge online"><span class="status-dot"></span> 在线</span></td>
-                            <td>printer</td>
-                            <td>Embedded</td>
-                            <td>HP</td>
-                            <td>80, 9100</td>
-                            <td>昨天 14:22</td>
-                        </tr>
-                        <tr>
-                            <td>192.168.1.5</td>
-                            <td><span class="status-badge unknown"><span class="status-dot"></span> 未知</span></td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>前天 11:30</td>
-                        </tr>
+                    <tbody id="assets-table">
+                        <tr><td colspan="7" class="loading">加载中...</td></tr>
                     </tbody>
                 </table>
-            </div>
-
-            <!-- 分页 -->
-            <div class="pagination">
-                <a href="#">&laquo; 上一页</a>
-                <a href="#" class="current">1</a>
-                <a href="#">2</a>
-                <a href="#">3</a>
-                <span>...</span>
-                <a href="#">42</a>
-                <a href="#">下一页 &raquo;</a>
             </div>
         </div>
     </div>
 
-    <script src="static/js/app.js"></script>
+    <script>
+        // 加载资产列表
+        async function loadAssets() {
+            const searchInput = document.getElementById('search-input').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            let url = '/api/assets/?page=1&page_size=50';
+            if (searchInput) url += '&search=' + encodeURIComponent(searchInput);
+            if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // 更新计数
+                document.getElementById('asset-count').textContent = '已发现 ' + data.total + ' 个资产';
+                
+                // 更新表格
+                const tbody = document.getElementById('assets-table');
+                if (data.assets.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无资产数据</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                data.assets.forEach(asset => {
+                    const tr = document.createElement('tr');
+                    
+                    // IP 链接
+                    const ipTd = document.createElement('td');
+                    const ipLink = document.createElement('a');
+                    ipLink.href = '/asset/' + asset.ip;
+                    ipLink.textContent = asset.ip;
+                    ipLink.style.color = 'var(--accent-cyan)';
+                    ipLink.style.textDecoration = 'none';
+                    ipTd.appendChild(ipLink);
+                    tr.appendChild(ipTd);
+                    
+                    // 状态
+                    const statusTd = document.createElement('td');
+                    let statusClass = 'unknown';
+                    let statusText = '未知';
+                    if (asset.status === 'up' || asset.status === 'online') {
+                        statusClass = 'online';
+                        statusText = '在线';
+                    } else if (asset.status === 'down' || asset.status === 'offline') {
+                        statusClass = 'offline';
+                        statusText = '离线';
+                    }
+                    statusTd.innerHTML = '<span class="status-badge ' + statusClass + '"><span class="status-dot"></span> ' + statusText + '</span>';
+                    tr.appendChild(statusTd);
+                    
+                    // 其他字段
+                    tr.innerHTML += '<td>' + (asset.hostname || '-') + '</td>';
+                    tr.innerHTML += '<td>' + (asset.os_name || '-') + '</td>';
+                    tr.innerHTML += '<td>' + (asset.vendor || '-') + '</td>';
+                    
+                    // 端口数量
+                    const portCount = asset.open_ports ? asset.open_ports.length : 0;
+                    tr.innerHTML += '<td>' + (portCount > 0 ? asset.open_ports.join(', ') : '-') + '</td>';
+                    
+                    // 最后扫描时间
+                    tr.innerHTML += '<td>' + formatDateTime(asset.last_scan_at) + '</td>';
+                    
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('加载资产失败:', error);
+                document.getElementById('assets-table').innerHTML = '<tr><td colspan="7" class="empty-state">加载失败</td></tr>';
+            }
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // 页面加载时执行
+        loadAssets();
+        
+        // 搜索框回车事件
+        document.getElementById('search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadAssets();
+        });
+    </script>
 </body>
 </html>
