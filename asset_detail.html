@@ -115,11 +115,9 @@
                         const [portNum, protocol] = portStr.split('/');
                         const portCard = document.createElement('div');
                         portCard.className = 'port-card';
-                        portCard.innerHTML = '
-                            <div class="port-number">' + portNum + '</div>
-                            <div class="port-protocol">' + (protocol || 'tcp') + '</div>
-                            <div class="port-service">服务详情待完善</div>
-                        ';
+                        portCard.innerHTML = '<div class="port-number">' + portNum + '</div>' +
+                            '<div class="port-protocol">' + (protocol || 'tcp') + '</div>' +
+                            '<div class="port-service">服务详情待完善</div>';
                         portsGrid.appendChild(portCard);
                     });
                 } else {
