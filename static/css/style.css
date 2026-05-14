@@ -758,3 +758,42 @@ tbody tr:last-child td {
   color: var(--text-secondary);
   margin-top: var(--space-1);
 }
+
+/* === 图表卡片样式 (v0.9.1) === */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.chart-card {
+  min-height: 300px;
+}
+
+.chart-card h3 {
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  font-size: 16px;
+}
+
+.chart-container {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-fallback {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 768px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}

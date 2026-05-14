@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 仪表盘</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -44,12 +45,10 @@
             <div class="bento-grid-two-col">
                 <div class="card">
                     <h2>快速扫描</h2>
-                    <form class="scan-form">
-                        <div class="form-group">
-                            <input type="text" id="scan-target" class="input" placeholder="输入目标网段，例如：192.168.1.0/24">
-                        </div>
-                        <button type="submit" class="btn-primary">开始扫描</button>
-                    </form>
+                    <div class="form-group">
+                        <input type="text" id="scan-target" class="input" placeholder="输入目标网段，例如：192.168.1.0/24">
+                    </div>
+                    <button class="btn-primary">开始扫描</button>
                 </div>
                 <div class="card">
                     <h2>最近扫描记录</h2>
@@ -62,20 +61,24 @@
                 </div>
             </div>
 
-            <!-- 厂商分布和IP状态分布 -->
-            <div class="bento-grid-two-col">
-                <div class="card">
-                    <h2>厂商分布</h2>
-                    <div class="distribution-list" id="vendor-distribution">
-                        <!-- 厂商分布将通过JavaScript动态加载 -->
-                        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">暂无数据</div>
+            <!-- 数据可视化图表区域 -->
+            <div class="charts-grid">
+                <div class="card chart-card">
+                    <h3>IP 状态分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-status"></canvas>
+                    </div>
+                    <div id="chart-status-fallback" class="chart-fallback" style="display:none;">
+                        图表加载失败，请刷新页面重试
                     </div>
                 </div>
-                <div class="card">
-                    <h2>IP 状态分布</h2>
-                    <div class="chart-placeholder">状态分布条形图占位符</div>
-                    <div class="status-bar">
-                        <div class="status-segment" style="width: 100%; text-align: center; padding: 10px;">暂无数据</div>
+                <div class="card chart-card">
+                    <h3>厂商/OS 分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-vendor"></canvas>
+                    </div>
+                    <div id="chart-vendor-fallback" class="chart-fallback" style="display:none;">
+                        图表加载失败，请刷新页面重试
                     </div>
                 </div>
             </div>
