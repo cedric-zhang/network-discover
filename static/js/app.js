@@ -1,23 +1,36 @@
 /*
  * 网络设备发现平台 - JavaScript入口文件
- * 版本: v0.7.0
+ * 版本: v0.8.1
  * 功能: 真实数据绑定 + 扫描进度跟踪
  */
 
+// Version loading function - handles both DOM loading and already loaded states
+async function loadVersion() {
+    const el = document.getElementById('app-version');
+    if (!el) {
+        console.warn('app-version element not found');
+        return;
+    }
+    try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        el.textContent = 'v' + data.version;
+        console.log('Version loaded:', data.version);
+    } catch (e) {
+        el.textContent = 'v?.?.?';
+        console.error('Failed to load version:', e);
+    }
+}
+
+// Execute version loading immediately or on DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadVersion);
+} else {
+    loadVersion();  // DOM already loaded, execute directly
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('Network Discovery Platform UI v0.8.1');
-    
-    // Load version from backend API
-    const versionEl = document.getElementById('app-version');
-    if (versionEl) {
-        try {
-            const res = await fetch('/health');
-            const data = await res.json();
-            versionEl.textContent = 'v' + data.version;
-        } catch {
-            versionEl.textContent = 'v?.?.?';
-        }
-    }
 
     // 加载仪表盘统计数据（根据现有API计算）
     async function loadDashboardStats() {

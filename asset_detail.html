@@ -197,19 +197,30 @@
         }
 
         // 页面加载时执行
-        document.addEventListener("DOMContentLoaded", async () => {
-        // Load version from backend
-        const versionEl = document.getElementById('app-version');
-        if (versionEl) {
+        // Version loading with readyState check
+        async function loadVersion() {
+            const el = document.getElementById('app-version');
+            if (!el) return;
             try {
                 const res = await fetch('/health');
                 const data = await res.json();
-                versionEl.textContent = 'v' + data.version;
-            } catch {
-                versionEl.textContent = 'v?.?.?';
+                el.textContent = 'v' + data.version;
+                console.log('Version loaded:', data.version);
+            } catch (e) {
+                el.textContent = 'v?.?.?';
+                console.error('Failed to load version:', e);
             }
         }
-        loadAssetDetail();
+
+        // Execute immediately or on DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener("DOMContentLoaded", () => {
+                loadVersion();
+                loadAssetDetail();
+            });
+        } else {
+            loadVersion();
+            loadAssetDetail();
         });
     </script>
 </body>
