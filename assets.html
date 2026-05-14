@@ -36,7 +36,7 @@
                         <option value="unknown">未知</option>
                     </select>
                 </div>
-                <button class="filter-btn" onclick="loadAssets()">搜索</button>
+                <button class="filter-btn" onclick="loadAssets()">搜索</button> <button class="btn-secondary" onclick="exportCSV()">导出 CSV</button>
             </div>
 
             <!-- 表格 -->
@@ -148,10 +148,18 @@
 
         // 页面加载时执行
         loadAssets();
+n        // 导出 CSV
+        function exportCSV() {
+            window.location.href = "/api/assets/export";
+        }
         
         // 搜索框回车事件
         document.getElementById('search-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') loadAssets();
+n        // 导出 CSV
+        function exportCSV() {
+            window.location.href = "/api/assets/export";
+        }
         });
     </script>
     <script src="/static/js/app.js"></script>
