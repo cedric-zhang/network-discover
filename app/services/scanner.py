@@ -1,3 +1,4 @@
+import threading
 import subprocess
 import asyncio
 from typing import Dict
@@ -13,6 +14,9 @@ from app.models import ScanTask, IPAsset
 
 
 class ScannerService:
+    # Global scan lock to prevent concurrent scans
+    _scan_lock = threading.Lock()
+    
     def __init__(self):
         self.active_scans: Dict[str, dict] = {}
         self.scan_results: Dict[str, dict] = {}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络设备发现平台 - 计划任务</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h3 {
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .modal-body {
+            margin-bottom: 16px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .form-hint {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-small {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="brand">网络设备发现平台 <span id="app-version"></span></div>
+        <div class="links">
+            <a href="/index.html">仪表盘</a>
+            <a href="/scan.html">扫描</a>
+            <a href="/assets.html">资产</a>
+            <a href="/schedules.html" class="active">计划</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-content">
+            <div class="page-title">计划任务</div>
+            <div class="page-subtitle" id="schedule-count">加载中...</div>
+
+            <!-- 添加任务按钮 -->
+            <div class="filter-bar">
+                <button class="filter-btn" onclick="openModal()">添加任务</button>
+            </div>
+
+            <!-- 表格 -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>任务名称</th>
+                            <th>目标网段</th>
+                            <th>Cron 表达式</th>
+                            <th>状态</th>
+                            <th>上次运行</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules-table">
+                        <tr><td colspan="7" class="loading">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加任务弹窗 -->
+    <div id="modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加计划任务</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>任务名称</label>
+                    <input type="text" class="input" id="schedule-name" placeholder="如：每日扫描">
+                </div>
+                <div class="form-group">
+                    <label>目标网段</label>
+                    <input type="text" class="input" id="schedule-target" placeholder="如：192.168.88.0/24">
+                </div>
+                <div class="form-group">
+                    <label>Cron 表达式 (5字段格式)</label>
+                    <input type="text" class="input" id="schedule-cron" placeholder="如：0 9 * * * (每天9点)">
+                    <div class="form-hint">格式：分 时 日 月 周<br>示例：<br>0 9 * * * = 每天9:00<br>*/5 * * * * = 每5分钟<br>0 9 * * 1 = 每周一9:00</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn-primary" onclick="createSchedule()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 加载计划任务列表
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedules/');
+                const data = await response.json();
+
+                document.getElementById('schedule-count').textContent = '共 ' + data.length + ' 个计划任务';
+
+                const tbody = document.getElementById('schedules-table');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无计划任务</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                data.forEach(function(schedule) {
+                    var tr = document.createElement('tr');
+
+                    tr.innerHTML += '<td>' + schedule.name + '</td>';
+                    tr.innerHTML += '<td>' + schedule.target + '</td>';
+                    tr.innerHTML += '<td><code>' + schedule.cron_expr + '</code></td>';
+
+                    // 状态
+                    var statusClass = schedule.is_active ? 'online' : 'offline';
+                    var statusText = schedule.is_active ? '启用' : '禁用';
+                    tr.innerHTML += '<td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span> ' + statusText + '</span></td>';
+
+                    // 上次运行时间
+                    tr.innerHTML += '<td>' + formatDateTime(schedule.last_run_at) + '</td>';
+
+                    // 创建时间
+                    tr.innerHTML += '<td>' + formatDateTime(schedule.created_at) + '</td>';
+
+                    // 操作按钮
+                    var actionsTd = document.createElement('td');
+                    var toggleBtn = schedule.is_active ? '禁用' : '启用';
+                    actionsTd.innerHTML = '<button class="btn-small" onclick="toggleSchedule(' + schedule.id + ')">' + toggleBtn + '</button>';
+                    actionsTd.innerHTML += ' <button class="btn-small btn-danger" onclick="deleteSchedule(' + schedule.id + ')">删除</button>';
+                    tr.appendChild(actionsTd);
+
+                    tbody.appendChild(tr);
+                });
+
+            } catch (error) {
+                console.error('加载计划任务失败:', error);
+                document.getElementById('schedules-table').innerHTML = '<tr><td colspan="7" class="empty-state">加载失败</td></tr>';
+            }
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            var date = new Date(dateStr);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // 打开弹窗
+        function openModal() {
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('schedule-name').value = '';
+            document.getElementById('schedule-target').value = '';
+            document.getElementById('schedule-cron').value = '';
+        }
+
+        // 创建计划任务
+        async function createSchedule() {
+            var name = document.getElementById('schedule-name').value.trim();
+            var target = document.getElementById('schedule-target').value.trim();
+            var cronExpr = document.getElementById('schedule-cron').value.trim();
+
+            if (!name || !target || !cronExpr) {
+                alert('请填写所有字段');
+                return;
+            }
+
+            try {
+                var response = await fetch('/api/schedules/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        target: target,
+                        cron_expr: cronExpr
+                    })
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadSchedules();
+                } else {
+                    var error = await response.json();
+                    alert('创建失败: ' + (error.detail || '未知错误'));
+                }
+            } catch (error) {
+                console.error('创建计划任务失败:', error);
+                alert('创建失败');
+            }
+        }
+
+        // 启用/禁用任务
+        async function toggleSchedule(id) {
+            try {
+                var response = await fetch('/api/schedules/' + id + '/toggle', {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    loadSchedules();
+                } else {
+                    alert('操作失败');
+                }
+            } catch (error) {
+                console.error('切换状态失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 删除任务
+        async function deleteSchedule(id) {
+            if (!confirm('确定要删除此计划任务吗？')) return;
+
+            try {
+                var response = await fetch('/api/schedules/' + id, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadSchedules();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (error) {
+                console.error('删除计划任务失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        // 页面加载时执行
+        loadSchedules();
+    </script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

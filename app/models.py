@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 import ipaddress
 import re
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean
 from app.database import Base
 
 
@@ -93,6 +93,19 @@ class IPAsset(Base):
     last_scan_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    target = Column(String, nullable=False)
+    cron_expr = Column(String, nullable=False)  # 5-field cron: minute hour day month day_of_week
+    is_active = Column(Boolean, default=True)
+    last_run_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class ScanTask(Base):
     __tablename__ = "scan_tasks"
