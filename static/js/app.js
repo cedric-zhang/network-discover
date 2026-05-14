@@ -52,10 +52,10 @@ async function loadDashboardStats() {
         });
 
         // 更新统计卡片
-        updateStatCard('total-ips', total);
-        updateStatCard('online-count', online);
-        updateStatCard('offline-count', offline);
-        updateStatCard('unknown-count', unknown);
+        updateStatCard('stat-total-ip', total);
+        updateStatCard('stat-online-ip', online);
+        updateStatCard('stat-offline-ip', offline);
+        updateStatCard('stat-unknown-ip', unknown);
         
         console.log('Dashboard stats loaded:', {total, online, offline, unknown});
     } catch (e) {
