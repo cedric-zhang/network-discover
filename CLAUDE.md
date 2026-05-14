@@ -1,83 +1,79 @@
 # 网络设备发现平台 — Claude Code 开发上下文
 
-> 生成时间: 2026-05-13 | 当前版本: **v0.8.1** | 状态: ✅ 端口详情补全与版本治理完成
+> **最后更新**: 2026-05-14 | **当前版本**: v0.8.1 | **状态**: ✅ 端口详情补全 + 12个Hotfix已完成
 
-## 🚨 开发铁律（每次启动必读）
+---
 
-1. **SSH 强制**：必须在 `192.168.88.94` 的 `/root/network-discovery` 下操作，**禁止本地开发**
-2. **禁止 `git init`**：仓库已存在，只能 `git add/commit/push`
-3. **测试门禁 (Step 0)**：开发前先跑 `cd /root/network-discovery && pytest tests/ -v`，失败先修
-4. **版本号规则**：功能迭代 `+0.1.0`，Bug 修复 `+0.0.1`
-5. **每次 commit**：提交信息格式 `[类型] 具体做了什么`
+## 🚨 环境强制声明（不遵守 = 任务作废）
 
-## 📋 v0.1.0 ~ v0.8.1 开发历程
+> **你的运行环境是本地开发机 (Windows)，但项目只在远程服务器上！**
+> **唯一合法的开发目录**: 192.168.88.94:/root/network-discovery
+> **唯一合法的操作方式**: 通过 ssh root@192.168.88.94 执行所有命令
+> **绝对禁止**: 在本地 C:\Users\ai 创建/修改任何项目文件
 
-| 版本 | 内容 | 状态 |
-|------|------|------|
-| v0.1.0 | UI 骨架 — 深色 Bento Grid + CSS 变量 + 3 页面 | ✅ |
-| v0.2.0 | FastAPI + Pydantic + 4 REST API | ✅ |
-| v0.3.0 | nmap CLI 封装 + 异步扫描 + XML 解析 | ✅ |
-| v0.4.0 | SQLite + SQLAlchemy + IP Upsert 持久化 | ✅ |
-| v0.5.0 | APScheduler 定时扫描集成 | ✅ |
-| v0.8.1 | Vanilla JS 真实数据绑定 + Nginx/Systemd 部署 | ✅ |
+**验证方法**：
+ssh root@192.168.88.94 "hostname && pwd"
+# 输出: ai-team /root/network-discovery
 
-### v0.8.1 修复记录（重要，避免重蹈覆辙）
+**铁律**：
+1. 所有 Bash 命令必须写成 ssh root@192.168.88.94 "cd /root/network-discovery && ..." 格式
+2. 绝对禁止给裸命令
+3. 提交前验证语法：python3 -m py_compile *.py + node --check *.js
 
-- **Bug 1**：前端 API 路径 `/api/scans/` 应为 `/api/scan/submit` → 已修复
-- **Bug 2**：Nginx 默认 server 块冲突 → 已注释掉 `/etc/nginx/nginx.conf` 默认 server
-- **Bug 3**：`/root/network-discovery` 权限 403 → 已 `chmod 755 /root` + `chmod -R 755 /root/network-discovery`
-- **Bug 4**：`scan.html` `<form>` 缺 `class="scan-form"` → 已添加
-- **Bug 5**：`index.html` 硬编码假数据 → 已移除，JS 动态填充空状态
+---
 
-## 🏗️ 项目结构
+## 📊 v0.8.1 完成内容
 
-```
+### ✅ 功能增强
+- 端口详情提取：从 nmap XML 提取 service/product/version
+- 数据存储格式升级："22/tcp" → {port:22, service:ssh, product:OpenSSH, version:8.7}
+- 动态版本号：从 /health API 加载，告别硬编码
+- 资产详情页：完整展示端口服务信息
+
+### 🔧 Hotfix 修复 (共12次)
+| 问题类型 | 次数 | 教训 |
+|---------|------|------|
+| JS 语法错误 | 4 | 提交前必须 node --check |
+| 元素ID不匹配 | 3 | 写 JS 前先 grep 确认 HTML ID |
+| 相对路径404 | 2 | 统一用绝对路径 /static/... |
+| DOMContentLoaded时序 | 2 | 用 readyState === loading 判断 |
+
+---
+
+## 🚫 防坑指南
+
+### 1. JS 内联代码高危
+提交前提取 JS 并验证语法：node --check static/js/*.js
+
+### 2. DOMContentLoaded 不可靠
+脚本在 body 底部时事件已触发，正确模式：
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
+### 3. 资源路径一律绝对
+静态资源：/static/css/style.css
+导航链接：/index.html、/scan.html
+
+### 4. 版本号单一源头
+HTML: <span id="app-version"></span>
+JS: fetch('/health') 动态加载
+后端: APP_VERSION = "0.8.1"
+
+---
+
+## 📁 项目结构
 /root/network-discovery/
-├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI 入口
-│   ├── models.py         # SQLAlchemy 模型 (IPAsset, ScanTask, Schedule)
-│   ├── schemas.py        # Pydantic schemas
-│   ├── scanner.py        # nmap 封装
-│   └── scheduler.py      # APScheduler
-├── static/
-│   ├── css/style.css     # 全局样式 + CSS 变量
-│   └── js/app.js         # 前端逻辑 (Fetch API)
-├── templates/
-│   ├── index.html        # 仪表盘
-│   ├── scan.html         # 扫描页
-│   └── assets.html       # 资产清单
-├── tests/
-│   ├── test_api.py       # API 测试
-│   ├── test_scanner.py   # nmap 测试
-│   ├── test_scheduler.py # 调度测试
-│   └── ui-validate.sh    # UI 结构验证
-├── deploy.sh             # 部署脚本 (Systemd + Nginx)
-└── requirements.txt
-```
+├── app/main.py              # FastAPI 入口
+├── app/models.py            # PortInfo 含 version 字段
+├── app/services/scanner.py  # save_assets_to_db 存完整端口对象
+├── static/js/app.js         # initApp 统一初始化
+├── data/network.db          # SQLite 数据库
+├── index.html, scan.html, assets.html, asset_detail.html
 
-## 🔧 当前环境
-
-- **服务器**: `192.168.88.94` (RockyLinux 9.7)
-- **项目路径**: `/root/network-discovery`
-- **服务运行**: Systemd (`network-discovery.service`) → Uvicorn :8000
-- **Nginx**: 监听 80 → 反向代理到 `127.0.0.1:8000`
-- **数据库**: SQLite (`/root/network-discovery/app/network_discovery.db`)
-- **测试基线**: 50+ pytest 用例应全部 PASS
-
-## 🎨 UI 设计规范
-
-- 深色主题: 背景 `#0f1923`，卡片 `#222d3d`
-- 无实线边框，用柔和阴影 + 大圆角
-- CSS 变量集中在 `style.css` 顶部
-- Bento Grid 布局，响应式
-
-## ⏭️ 下一步方向（待确认）
-
-v0.8.1 已闭环。后续候选方向：
-1. 端到端扫描验证（跑一次真实扫描，确认数据流转）
-2. 扫描进度实时反馈
-3. 资产详情页（单 IP 端口/服务/OS 详情）
-4. CSV/Excel 导出
-
-**等待军师生成 v0.7.0 任务卡后再开始开发。**
+环境配置：
+- 服务器: 192.168.88.94 (RockyLinux 9.7)
+- 服务: Systemd network-discovery.service → Uvicorn 4 workers :8000
+- Nginx: 80 → 反向代理到 127.0.0.1:8000
