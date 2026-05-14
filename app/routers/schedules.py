@@ -1,10 +1,18 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import SessionLocal
 from app.models import Schedule
 from pydantic import BaseModel
 from datetime import datetime
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 router = APIRouter()
@@ -26,9 +34,9 @@ class ScheduleResponse(BaseModel):
     created_at: str
 
 
-@router.post("/schedules/", response_model=ScheduleResponse)
+@router.post(/schedules/, response_model=ScheduleResponse)
 def create_schedule(schedule: ScheduleCreateRequest, db: Session = Depends(get_db)):
-    """创建新的定时扫描任务"""
+    创建新的定时扫描任务
     from app.models import Schedule
     
     db_schedule = Schedule(
@@ -53,9 +61,9 @@ def create_schedule(schedule: ScheduleCreateRequest, db: Session = Depends(get_d
     )
 
 
-@router.get("/schedules/", response_model=List[ScheduleResponse])
+@router.get(/schedules/, response_model=List[ScheduleResponse])
 def get_schedules(db: Session = Depends(get_db)):
-    """获取所有定时扫描任务"""
+    获取所有定时扫描任务
     schedules = db.query(Schedule).all()
     
     return [
@@ -72,12 +80,12 @@ def get_schedules(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/schedules/{schedule_id}", response_model=ScheduleResponse)
+@router.get(/schedules/{schedule_id}, response_model=ScheduleResponse)
 def get_schedule(schedule_id: int, db: Session = Depends(get_db)):
-    """获取特定定时扫描任务"""
+    获取特定定时扫描任务
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     if not schedule:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=404, detail=Schedule not found)
     
     return ScheduleResponse(
         id=schedule.id,
@@ -90,12 +98,12 @@ def get_schedule(schedule_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.put("/schedules/{schedule_id}/toggle", response_model=ScheduleResponse)
+@router.put(/schedules/{schedule_id}/toggle, response_model=ScheduleResponse)
 def toggle_schedule(schedule_id: int, db: Session = Depends(get_db)):
-    """激活/暂停定时扫描任务"""
+    激活/暂停定时扫描任务
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     if not schedule:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=404, detail=Schedule not found)
     
     schedule.is_active = not schedule.is_active
     db.commit()
@@ -112,14 +120,14 @@ def toggle_schedule(schedule_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.delete("/schedules/{schedule_id}")
+@router.delete(/schedules/{schedule_id})
 def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
-    """删除定时扫描任务"""
+    删除定时扫描任务
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     if not schedule:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=404, detail=Schedule not found)
     
     db.delete(schedule)
     db.commit()
     
-    return {"message": "Schedule deleted successfully"}
+    return {message: Schedule deleted successfully}

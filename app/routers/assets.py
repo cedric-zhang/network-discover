@@ -2,9 +2,17 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import SessionLocal
 from app.models import IPAsset
 from pydantic import BaseModel
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 router = APIRouter()

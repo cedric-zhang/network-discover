@@ -7,9 +7,6 @@ from app.models import ScanSubmitRequest, ScanOptions
 import xml.etree.ElementTree as ET
 from app.utils.nmap_parser import parse_nmap_xml
 import os
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.models import ScanTask
 
 
 class ScannerService:
@@ -19,73 +16,42 @@ class ScannerService:
 
     def build_nmap_command(self, target: str, scan_options: ScanOptions = None) -> list:
         """
-        Build nmap scan command
+        构建nmap扫描命令
         """
         if scan_options is None:
             scan_options = ScanOptions()
 
-        cmd = ["nmap", "-sS"]  # SYN scan
+        cmd = ["nmap", "-sS"]  # SYN扫描
 
-        # Add parameters based on scan options
+        # 根据扫描选项添加参数
         if scan_options.port_scan:
-            cmd.extend(["-sV"])  # version detection
+            cmd.extend(["-sV"])  # 版本探测
         if scan_options.os_detection:
-            cmd.extend(["-O"])   # OS detection
+            cmd.extend(["-O"])   # 操作系统检测
         if scan_options.vendor_detection:
-            cmd.extend(["-A"])   # Enable script scan, OS detection and version detection (includes -O and -sV)
+            cmd.extend(["-A"])   # 启用脚本扫描、OS检测和版本检测（包含了-O和-sV）
 
-        # Add quick scan parameters and XML output
+        # 添加快速扫描参数和XML输出
         cmd.extend(["-T4", "-oX", "-", target])
 
         return cmd
 
-    def update_scan_task_in_db(self, task_id: str, status: str, result_summary: str = None):
-        """
-        Update scan task status in database
-        """
-        db: Session = SessionLocal()
-        try:
-            scan_task = db.query(ScanTask).filter(ScanTask.task_id == task_id).first()
-            if scan_task:
-                scan_task.status = status
-                if result_summary:
-                    scan_task.result_summary = result_summary
-                scan_task.updated_at = datetime.utcnow()
-                db.commit()
-            else:
-                # If task doesn't exist, create a new task record
-                new_task = ScanTask(
-                    task_id=task_id,
-                    target="",  # We don't have target here, but it should be set elsewhere
-                    status=status,
-                    result_summary=result_summary
-                )
-                db.add(new_task)
-                db.commit()
-        except Exception as e:
-            logging.error(f"Error updating scan task in DB: {str(e)}")
-        finally:
-            db.close()
-
     async def run_scan(self, task_id: str, scan_request: ScanSubmitRequest):
         """
-        Run nmap scan in background
+        在后台运行nmap扫描
         """
         try:
-            # Update task status to scanning in memory
+            # 更新任务状态为scanning
             if task_id in self.active_scans:
                 self.active_scans[task_id]["status"] = "scanning"
                 self.active_scans[task_id]["updated_at"] = datetime.now().isoformat()
 
-            # Update task status to scanning in database
-            self.update_scan_task_in_db(task_id, "scanning")
-
-            # Build command
+            # 构建命令
             cmd = self.build_nmap_command(scan_request.target, scan_request.scan_options)
 
             logging.info(f"Executing nmap command: {' '.join(cmd)}")
 
-            # Execute command asynchronously with timeout
+            # 异步执行命令，设置超时时间
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -94,26 +60,23 @@ class ScannerService:
             )
 
             try:
-                # Wait for command execution with 5-minute timeout
+                # 等待命令执行，设置5分钟超时
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300.0)
 
-                # Check exit code
+                # 检查退出码
                 if proc.returncode == 0:
-                    # Parse XML output
+                    # 解析XML输出
                     xml_output = stdout.decode('utf-8')
 
-                    # Update task status to completed in memory
+                    # 更新任务状态为completed
                     if task_id in self.active_scans:
                         self.active_scans[task_id]["status"] = "completed"
                         self.active_scans[task_id]["updated_at"] = datetime.now().isoformat()
 
-                    # Update task status to completed in database
-                    self.update_scan_task_in_db(task_id, "completed", f"Scan completed successfully with {len(parse_nmap_xml(xml_output))} hosts found")
-
-                    # Parse scan results
+                    # 解析扫描结果
                     hosts = parse_nmap_xml(xml_output)
 
-                    # Save scan results
+                    # 保存扫描结果
                     self.scan_results[task_id] = {
                         "task_id": task_id,
                         "status": "completed",
@@ -122,19 +85,15 @@ class ScannerService:
                     }
 
                 else:
-                    # Scan failed
+                    # 扫描失败
                     error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
 
-                    # Update task status to failed in memory
                     if task_id in self.active_scans:
                         self.active_scans[task_id]["status"] = "failed"
                         self.active_scans[task_id]["updated_at"] = datetime.now().isoformat()
                         self.active_scans[task_id]["error"] = error_msg
 
-                    # Update task status to failed in database
-                    self.update_scan_task_in_db(task_id, "failed", f"Scan failed: {error_msg}")
-
-                    # Save failed results
+                    # 保存失败结果
                     self.scan_results[task_id] = {
                         "task_id": task_id,
                         "status": "failed",
@@ -143,17 +102,13 @@ class ScannerService:
                     }
 
             except asyncio.TimeoutError:
-                # Scan timeout
-                # Update task status to failed in memory
+                # 扫描超时
                 if task_id in self.active_scans:
                     self.active_scans[task_id]["status"] = "failed"
                     self.active_scans[task_id]["updated_at"] = datetime.now().isoformat()
                     self.active_scans[task_id]["error"] = "Scan timeout exceeded (5 minutes)"
 
-                # Update task status to failed in database
-                self.update_scan_task_in_db(task_id, "failed", "Scan timeout exceeded (5 minutes)")
-
-                # Save timeout results
+                # 保存超时结果
                 self.scan_results[task_id] = {
                     "task_id": task_id,
                     "status": "failed",
@@ -161,26 +116,22 @@ class ScannerService:
                     "error": "Scan timeout exceeded (5 minutes)"
                 }
 
-                # Try to terminate process
+                # 尝试终止进程
                 try:
                     proc.terminate()
                     await proc.wait()
                 except ProcessLookupError:
-                    pass  # Process might have already finished
+                    pass  # 进程可能已经结束了
         except Exception as e:
-            # Scan exception
+            # 扫描异常
             logging.error(f"Error during scan {task_id}: {str(e)}")
 
-            # Update task status to failed in memory
             if task_id in self.active_scans:
                 self.active_scans[task_id]["status"] = "failed"
                 self.active_scans[task_id]["updated_at"] = datetime.now().isoformat()
                 self.active_scans[task_id]["error"] = str(e)
 
-            # Update task status to failed in database
-            self.update_scan_task_in_db(task_id, "failed", f"Scan error: {str(e)}")
-
-            # Save exception results
+            # 保存异常结果
             self.scan_results[task_id] = {
                 "task_id": task_id,
                 "status": "failed",
@@ -189,5 +140,5 @@ class ScannerService:
             }
 
 
-# Global scanner service instance
+# 全局扫描器实例
 scanner_service = ScannerService()

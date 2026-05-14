@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 
-app = FastAPI(title="网络设备发现平台", version="0.2.0")
+app = FastAPI(title="网络设备发现平台", version="0.7.0")
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -26,12 +26,15 @@ async def assets():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.7.0"}
 
 # 注册 API 路由
 from app.routers import scan
 app.include_router(scan.router, prefix="/api", tags=["scan"])
+# app.include_router(assets.router, prefix="/api", tags=["assets"])
+# app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
