@@ -14,6 +14,7 @@ class PortInfo(BaseModel):
     protocol: str
     service: str
     product: str
+    version: str = ""
 
 
 class HostInfo(BaseModel):

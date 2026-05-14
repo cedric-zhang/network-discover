@@ -4,8 +4,20 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Network Discovery Platform UI v0.7.0');
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Network Discovery Platform UI v0.8.1');
+    
+    // Load version from backend API
+    const versionEl = document.getElementById('app-version');
+    if (versionEl) {
+        try {
+            const res = await fetch('/health');
+            const data = await res.json();
+            versionEl.textContent = 'v' + data.version;
+        } catch {
+            versionEl.textContent = 'v?.?.?';
+        }
+    }
 
     // 加载仪表盘统计数据（根据现有API计算）
     async function loadDashboardStats() {

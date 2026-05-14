@@ -74,7 +74,8 @@ def parse_nmap_xml(xml_content: str) -> List[HostInfo]:
                         port=int(port_elem.get('portid', 0)),
                         protocol=port_elem.get('protocol', ''),
                         service=service_elem.get('name', '') if service_elem is not None else '',
-                        product=service_elem.get('product', '') if service_elem is not None else ''
+                        product=service_elem.get('product', '') if service_elem is not None else '',
+                        version=service_elem.get('version', '') if service_elem is not None else ''
                     )
 
                     host_info.ports.append(port_info)

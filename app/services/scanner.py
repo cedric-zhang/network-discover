@@ -77,16 +77,23 @@ class ScannerService:
         try:
             for host in hosts:
                 logging.info(f"Processing host: {host.ip} with {len(host.ports)} ports")
-                simple_port_list = [f"{port.port}/{port.protocol}" for port in host.ports]
+                # Store full port objects with service/product/version details
+                port_list = [{
+                    "port": port.port,
+                    "protocol": port.protocol,
+                    "service": port.service,
+                    "product": port.product,
+                    "version": port.version
+                } for port in host.ports]
                 existing_asset = db.query(IPAsset).filter(IPAsset.ip == host.ip).first()
                 if existing_asset:
                     existing_asset.status = host.status
                     existing_asset.hostname = host.hostname
                     existing_asset.os_name = host.os
                     existing_asset.vendor = host.vendor
-                    existing_asset.open_ports = simple_port_list
+                    existing_asset.open_ports = port_list
                     existing_asset.last_scan_at = datetime.utcnow()
-                    logging.info(f"Updated asset {host.ip} with ports: {simple_port_list}")
+                    logging.info(f"Updated asset {host.ip} with ports: {port_list}")
                 else:
                     new_asset = IPAsset(
                         ip=host.ip,
@@ -94,11 +101,11 @@ class ScannerService:
                         hostname=host.hostname,
                         os_name=host.os,
                         vendor=host.vendor,
-                        open_ports=simple_port_list,
+                        open_ports=port_list,
                         last_scan_at=datetime.utcnow()
                     )
                     db.add(new_asset)
-                    logging.info(f"Created new asset {host.ip} with ports: {simple_port_list}")
+                    logging.info(f"Created new asset {host.ip} with ports: {port_list}")
             db.commit()
             logging.info(f"Successfully committed {len(hosts)} hosts to database")
         except Exception as e:

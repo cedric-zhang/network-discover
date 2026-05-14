@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
@@ -25,7 +25,7 @@ class AssetResponse(BaseModel):
     os_name: str
     vendor: str
     mac_address: str
-    open_ports: List[str]
+    open_ports: List[Dict]
     last_scan_at: Optional[str] = None
     created_at: Optional[str] = None
 

@@ -716,3 +716,45 @@ tbody tr:last-child td {
   background: var(--bg-card);
   border-radius: var(--radius);
 }
+
+/* === 端口卡片增强样式 (v0.8.1) === */
+.port-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: center;
+  transition: var(--transition-normal);
+  border: 1px solid var(--border-color);
+}
+
+.port-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.port-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: var(--space-1);
+}
+
+.port-protocol {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.port-service {
+  font-size: 14px;
+  color: var(--accent-blue);
+  margin-top: var(--space-2);
+  font-weight: 500;
+}
+
+.port-product {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
+}

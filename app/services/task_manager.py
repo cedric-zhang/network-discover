@@ -1,9 +1,9 @@
 from typing import Dict, Optional
 from datetime import datetime
-from app.models import ScanSubmitRequest, ScanResultResponse, HostInfo
+from app.models import ScanSubmitRequest, ScanResultResponse, HostInfo, PortInfo
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models import ScanTask
+from app.models import ScanTask, IPAsset
 
 
 class TaskManager:
@@ -62,9 +62,10 @@ class TaskManager:
                 self.tasks[task_id][key] = value
 
     def get_scan_result(self, task_id: str) -> Optional[ScanResultResponse]:
-        """Get scan result (from scanner_service)"""
+        """Get scan result - now fetches from database to handle multi-worker scenario"""
         from app.services.scanner import scanner_service
 
+        # First try to get from memory (for backwards compatibility)
         if task_id in scanner_service.scan_results:
             result_data = scanner_service.scan_results[task_id]
             return ScanResultResponse(
@@ -73,28 +74,89 @@ class TaskManager:
                 hosts=[HostInfo(**host_dict) for host_dict in result_data.get("hosts", [])]
             )
 
-        # If task exists but not in results, check task status
-        task = self.get_task(task_id)
-        if task:
+        # In multi-worker environments, memory might not be shared
+        # So we need to reconstruct the result from the database (IPAsset table)
+        db: Session = SessionLocal()
+        try:
+            # Check if the scan task exists and get its target
+            db_task = db.query(ScanTask).filter(ScanTask.task_id == task_id).first()
+            if not db_task:
+                return None
+
+            # For this specific task, let's try to reconstruct the result from IPAsset table
+            # Find assets that were scanned recently (based on task timestamp)
+            import re
+            from datetime import timedelta
+
+            # Extract timestamp from task_id (format: task_1778728418_85ca40ec)
+            try:
+                ts_part = task_id.split('_')[1]  # Gets timestamp part
+                task_time = datetime.utcfromtimestamp(int(ts_part))
+
+                # Look for assets scanned around this time
+                # We'll find assets based on the target IP from the scan task
+                target_ip = db_task.target
+                asset = db.query(IPAsset).filter(IPAsset.ip == target_ip).first()
+
+                if asset:
+                    # Create a single host from the asset data
+                    host = HostInfo(
+                        ip=asset.ip,
+                        status=asset.status,
+                        os=asset.os_name,  # This was the mapping issue!
+                        vendor=asset.vendor,
+                        hostname=asset.hostname,
+                        ports=[]  # We need to recreate ports from open_ports field
+                    )
+
+                    # Convert open_ports JSON list back to PortInfo objects
+                    # Now supports both old format "22/tcp" and new format {"port":22, "service":"ssh"}
+                    if asset.open_ports and isinstance(asset.open_ports, list):
+                        for port_data in asset.open_ports:
+                            if isinstance(port_data, dict):
+                                # New format: full port object
+                                port_info = PortInfo(
+                                    port=port_data.get("port", 0),
+                                    protocol=port_data.get("protocol", "tcp"),
+                                    service=port_data.get("service", ""),
+                                    product=port_data.get("product", ""),
+                                    version=port_data.get("version", "")
+                                )
+                            elif isinstance(port_data, str) and '/' in port_data:
+                                # Old format: "22/tcp" - backwards compatible
+                                port_num, protocol = port_data.split('/', 1)
+                                port_info = PortInfo(
+                                    port=int(port_num),
+                                    protocol=protocol,
+                                    service="",
+                                    product="",
+                                    version=""
+                                )
+                            else:
+                                continue
+                            host.ports.append(port_info)
+
+                    return ScanResultResponse(
+                        task_id=task_id,
+                        status=db_task.status,
+                        hosts=[host]
+                    )
+            except Exception as e:
+                import logging
+                logging.error(f"Error reconstructing result from database: {str(e)}")
+                # Fallback to just return basic info from task
+                pass
+
+            # If not found in IPAsset, return basic task status
             return ScanResultResponse(
                 task_id=task_id,
-                status=task["status"],
+                status=db_task.status,
                 hosts=[]
             )
 
-        # If not in memory, try to get from database
-        db: Session = SessionLocal()
-        try:
-            db_task = db.query(ScanTask).filter(ScanTask.task_id == task_id).first()
-            if db_task:
-                return ScanResultResponse(
-                    task_id=task_id,
-                    status=db_task.status,
-                    hosts=[]
-                )
         except Exception as e:
             import logging
-            logging.error(f"Error retrieving scan task from DB: {str(e)}")
+            logging.error(f"Error retrieving scan result from DB: {str(e)}")
         finally:
             db.close()
 

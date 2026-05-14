@@ -9,7 +9,7 @@
 <body>
     <!-- 顶部导航栏 -->
     <nav class="navbar">
-        <div class="brand">网络设备发现平台 v0.8.0</div>
+        <div class="brand">网络设备发现平台 <span id="app-version"></span></div>
         <div class="links">
             <a href="/index.html">仪表盘</a>
             <a href="/scan.html">扫描</a>
@@ -106,18 +106,45 @@
                 document.getElementById('os').textContent = '操作系统: ' + (data.os_name || '-');
                 document.getElementById('vendor').textContent = '厂商: ' + (data.vendor || '-');
 
-                // 更新端口列表
+                // 更新端口列表 - 支持新格式（完整对象）和旧格式（字符串）
                 const portsGrid = document.getElementById('ports-grid');
                 if (data.open_ports && data.open_ports.length > 0) {
                     portsGrid.innerHTML = '';
-                    data.open_ports.forEach(portStr => {
-                        // 解析端口字符串 (如 "22/tcp")
-                        const [portNum, protocol] = portStr.split('/');
+                    data.open_ports.forEach(portData => {
                         const portCard = document.createElement('div');
                         portCard.className = 'port-card';
+                        
+                        // Handle both new format (object) and old format (string)
+                        let portNum, protocol, service, product, version;
+                        if (typeof portData === 'object') {
+                            portNum = portData.port;
+                            protocol = portData.protocol || 'tcp';
+                            service = portData.service || '';
+                            product = portData.product || '';
+                            version = portData.version || '';
+                        } else if (typeof portData === 'string') {
+                            const parts = portData.split('/');
+                            portNum = parts[0];
+                            protocol = parts[1] || 'tcp';
+                            service = '';
+                            product = '';
+                            version = '';
+                        }
+                        
+                        // Build product+version string
+                        let productVersion = '';
+                        if (product && version) {
+                            productVersion = product + ' ' + version;
+                        } else if (product) {
+                            productVersion = product;
+                        } else if (version) {
+                            productVersion = version;
+                        }
+                        
                         portCard.innerHTML = '<div class="port-number">' + portNum + '</div>' +
-                            '<div class="port-protocol">' + (protocol || 'tcp') + '</div>' +
-                            '<div class="port-service">服务详情待完善</div>';
+                            '<div class="port-protocol">' + protocol + '</div>' +
+                            '<div class="port-service">' + (service || '未知服务') + '</div>' +
+                            (productVersion ? '<div class="port-product">' + productVersion + '</div>' : '');
                         portsGrid.appendChild(portCard);
                     });
                 } else {
@@ -170,7 +197,18 @@
         }
 
         // 页面加载时执行
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
+        // Load version from backend
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) {
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                versionEl.textContent = 'v' + data.version;
+            } catch {
+                versionEl.textContent = 'v?.?.?';
+            }
+        }
         loadAssetDetail();
         });
     </script>
