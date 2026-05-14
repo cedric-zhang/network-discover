@@ -9,7 +9,7 @@ from app.utils.nmap_parser import parse_nmap_xml
 import os
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models import ScanTask
+from app.models import ScanTask, IPAsset
 
 
 class ScannerService:
@@ -67,6 +67,45 @@ class ScannerService:
         finally:
             db.close()
 
+
+    def save_assets_to_db(self, hosts):
+        """
+        Save parsed hosts to the IP assets database with proper field mapping
+        """
+        logging.info(f"About to save {len(hosts)} hosts to database")
+        db: Session = SessionLocal()
+        try:
+            for host in hosts:
+                logging.info(f"Processing host: {host.ip} with {len(host.ports)} ports")
+                simple_port_list = [f"{port.port}/{port.protocol}" for port in host.ports]
+                existing_asset = db.query(IPAsset).filter(IPAsset.ip == host.ip).first()
+                if existing_asset:
+                    existing_asset.status = host.status
+                    existing_asset.hostname = host.hostname
+                    existing_asset.os_name = host.os
+                    existing_asset.vendor = host.vendor
+                    existing_asset.open_ports = simple_port_list
+                    existing_asset.last_scan_at = datetime.utcnow()
+                    logging.info(f"Updated asset {host.ip} with ports: {simple_port_list}")
+                else:
+                    new_asset = IPAsset(
+                        ip=host.ip,
+                        status=host.status,
+                        hostname=host.hostname,
+                        os_name=host.os,
+                        vendor=host.vendor,
+                        open_ports=simple_port_list,
+                        last_scan_at=datetime.utcnow()
+                    )
+                    db.add(new_asset)
+                    logging.info(f"Created new asset {host.ip} with ports: {simple_port_list}")
+            db.commit()
+            logging.info(f"Successfully committed {len(hosts)} hosts to database")
+        except Exception as e:
+            logging.error(f"Error saving assets to DB: {str(e)}")
+        finally:
+            db.close()
+
     async def run_scan(self, task_id: str, scan_request: ScanSubmitRequest):
         """
         Run nmap scan in background
@@ -112,6 +151,11 @@ class ScannerService:
 
                     # Parse scan results
                     hosts = parse_nmap_xml(xml_output)
+
+                    # Save parsed assets to database
+                    logging.info(f"About to call save_assets_to_db for {len(hosts)} hosts")
+                    self.save_assets_to_db(hosts)
+                    logging.info(f"Finished save_assets_to_db")
 
                     # Save scan results
                     self.scan_results[task_id] = {
