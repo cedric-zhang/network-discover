@@ -33,7 +33,7 @@ async function initApp() {
 
 // ===== 仪表盘统计 =====
 async function loadDashboardStats() {
-    const statsContainer = document.querySelector('.stats-grid');
+    const statsContainer = document.getElementById('stat-total-ip');
     if (!statsContainer) return; // 只在仪表盘页面执行
     
     try {
