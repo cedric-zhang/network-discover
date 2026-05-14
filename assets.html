@@ -32,9 +32,7 @@
                     <select class="select" id="status-filter">
                         <option value="">全部状态</option>
                         <option value="up">在线</option>
-                        <option value="online">在线</option>
                         <option value="down">离线</option>
-                        <option value="offline">离线</option>
                         <option value="unknown">未知</option>
                     </select>
                 </div>
@@ -122,7 +120,12 @@
                     
                     // 端口数量
                     const portCount = asset.open_ports ? asset.open_ports.length : 0;
-                    tr.innerHTML += '<td>' + (portCount > 0 ? asset.open_ports.join(', ') : '-') + '</td>';
+                    // Handle both new format (object) and old format (string)
+                    const portDisplay = portCount > 0 ? asset.open_ports.map(p => {
+                        if (typeof p === 'object') return p.port + '/' + p.protocol;
+                        return p; // old format "22/tcp" string
+                    }).join(', ') : '-';
+                    tr.innerHTML += '<td>' + portDisplay + '</td>';
                     
                     // 最后扫描时间
                     tr.innerHTML += '<td>' + formatDateTime(asset.last_scan_at) + '</td>';
