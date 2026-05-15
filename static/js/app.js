@@ -4,6 +4,45 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
+// ===== Toast 提示系统 (v0.9.4) =====
+// 必须在文件开头定义，确保全局可用
+function showToast(message, type) {
+    var container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+
+    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+    toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
+
+    container.appendChild(toast);
+
+    setTimeout(function() {
+        toast.remove();
+        if (container.children.length === 0) container.remove();
+    }, 3000);
+}
+
+// ===== 按钮 Loading 状态 =====
+function setButtonLoading(btn, loading) {
+    if (loading) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.dataset.originalText = btn.textContent;
+        btn.textContent = '扫描中...';
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        btn.textContent = btn.dataset.originalText || '开始扫描';
+    }
+}
+
 // 图表实例
 var statusChart = null;
 var vendorChart = null;
@@ -68,13 +107,11 @@ async function loadDashboardStats() {
             else if (asset.status === 'down' || asset.status === 'offline') offline++;
             else unknown++;
 
-            // 聚合厂商/OS统计（优先使用vendor，若为空则用os_name）
             var key = asset.vendor || asset.os_name || '未知';
             if (key.trim() === '') key = asset.os_name || '未知';
             vendorStats[key] = (vendorStats[key] || 0) + 1;
         });
 
-        // 更新统计卡片
         updateStatCard('stat-total-ip', total);
         updateStatCard('stat-online-ip', online);
         updateStatCard('stat-offline-ip', offline);
@@ -82,7 +119,6 @@ async function loadDashboardStats() {
 
         console.log('Dashboard stats loaded:', {total: total, online: online, offline: offline, unknown: unknown});
 
-        // 更新图表
         updateCharts(online, offline, unknown, vendorStats);
 
     } catch (e) {
@@ -98,7 +134,6 @@ function updateStatCard(id, value) {
 
 // ===== 图表渲染 =====
 function updateCharts(online, offline, unknown, vendorStats) {
-    // 检查 Chart.js 是否加载成功
     if (typeof Chart === 'undefined') {
         console.error('Chart.js not loaded');
         showChartFallback();
@@ -110,7 +145,6 @@ function updateCharts(online, offline, unknown, vendorStats) {
 
     if (!statusCanvas || !vendorCanvas) return;
 
-    // IP 状态环形图
     var statusCtx = statusCanvas.getContext('2d');
     if (statusChart) {
         statusChart.destroy();
@@ -152,13 +186,11 @@ function updateCharts(online, offline, unknown, vendorStats) {
         }
     });
 
-    // 厂商/OS分布条形图（Top 5）
     var vendorCtx = vendorCanvas.getContext('2d');
     if (vendorChart) {
         vendorChart.destroy();
     }
 
-    // 取 Top 5
     var sortedVendors = Object.entries(vendorStats)
         .sort(function(a, b) { return b[1] - a[1]; })
         .slice(0, 5);
@@ -194,11 +226,7 @@ function updateCharts(online, offline, unknown, vendorStats) {
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: {
-                        color: '#b8c5d6',
-                        maxRotation: 45,
-                        minRotation: 0
-                    }
+                    ticks: { color: '#b8c5d6', maxRotation: 45, minRotation: 0 }
                 },
                 y: {
                     grid: { color: 'rgba(255,255,255,0.1)' },
@@ -253,41 +281,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
 } else {
     initApp();
-}
-// ===== Toast 提示系统 (v0.9.4) =====
-function showToast(message, type) {
-    var container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
-    
-    var toast = document.createElement('div');
-    toast.className = 'toast toast-' + type;
-    
-    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
-    toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
-    
-    container.appendChild(toast);
-    
-    setTimeout(function() {
-        toast.remove();
-        if (container.children.length === 0) container.remove();
-    }, 3000);
-}
-
-// ===== 按钮 Loading 状态 =====
-function setButtonLoading(btn, loading) {
-    if (loading) {
-        btn.disabled = true;
-        btn.classList.add('btn-loading');
-        btn.dataset.originalText = btn.textContent;
-        btn.textContent = '扫描中...';
-    } else {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-        btn.textContent = btn.dataset.originalText || '开始扫描';
-    }
 }
