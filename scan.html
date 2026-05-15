@@ -116,54 +116,60 @@
         return true;
     }
 
-    // 扫描按钮事件
-    document.addEventListener('DOMContentLoaded', function() {
+    // 扫描按钮事件 - 直接执行（脚本在 body 结尾，DOM 已存在）
+    (function() {
         var scanBtn = document.getElementById('scan-btn');
         var targetInput = document.getElementById('scan-target');
         var scanTypeRadios = document.querySelectorAll('input[name="scanType"]');
+
+        if (!scanBtn || !targetInput) {
+            console.error('Scan button or target input not found');
+            return;
+        }
 
         // 监听扫描类型切换
         scanTypeRadios.forEach(function(radio) {
             radio.addEventListener('change', updatePlaceholder);
         });
 
-        if (scanBtn && targetInput) {
-            scanBtn.addEventListener('click', function() {
-                var target = targetInput.value.trim();
-                var isSingle = document.querySelector('input[name="scanType"]:checked').value === 'single';
-                if (!validateScanTarget(target, isSingle)) return;
+        // 扫描按钮点击事件
+        scanBtn.addEventListener('click', function() {
+            var target = targetInput.value.trim();
+            var isSingle = document.querySelector('input[name="scanType"]:checked').value === 'single';
+            if (!validateScanTarget(target, isSingle)) return;
 
-                setButtonLoading(scanBtn, true);
+            setButtonLoading(scanBtn, true);
 
-                fetch('/api/scan/submit', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        target: target,
-                        scan_options: {
-                            port_scan: document.querySelector('input[name="portScan"]')?.checked || true,
-                            os_detection: document.querySelector('input[name="osDetect"]')?.checked || true,
-                            vendor_detection: document.querySelector('input[name="vendorDetect"]')?.checked || true
-                        }
-                    })
-                })
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    setButtonLoading(scanBtn, false);
-                    if (data.task_id) {
-                        showToast('扫描任务已提交', 'success');
-                        targetInput.value = '';
-                    } else {
-                        showToast('扫描失败：' + (data.detail || '未知错误'), 'error');
+            fetch('/api/scan/submit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    target: target,
+                    scan_options: {
+                        port_scan: document.querySelector('input[name="portScan"]')?.checked || true,
+                        os_detection: document.querySelector('input[name="osDetect"]')?.checked || true,
+                        vendor_detection: document.querySelector('input[name="vendorDetect"]')?.checked || true
                     }
                 })
-                .catch(function(err) {
-                    setButtonLoading(scanBtn, false);
-                    showToast('提交失败，请检查网络连接', 'error');
-                });
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                setButtonLoading(scanBtn, false);
+                if (data.task_id) {
+                    showToast('扫描任务已提交', 'success');
+                    targetInput.value = '';
+                } else {
+                    showToast('扫描失败：' + (data.detail || '未知错误'), 'error');
+                }
+            })
+            .catch(function(err) {
+                setButtonLoading(scanBtn, false);
+                showToast('提交失败，请检查网络连接', 'error');
             });
-        }
-    });
+        });
+
+        console.log('Scan button event bound successfully');
+    })();
     </script>
 </body>
 </html>

@@ -48,14 +48,14 @@
                     <div class="form-group">
                         <input type="text" id="scan-target" class="input" placeholder="输入目标网段，例如：192.168.1.0/24">
                     </div>
-                    <button class="btn-primary">开始扫描</button>
+                    <button id="quick-scan-btn" class="btn-primary">开始扫描</button>
                 </div>
                 <div class="card">
                     <h2>最近扫描记录</h2>
                     <div style="margin-top: var(--space-4);">
                         <div id="recent-scans-list">
                             <!-- 最近扫描记录将通过JavaScript动态加载 -->
-                            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">暂无扫描记录，点击下方"开始扫描"创建第一次扫描</div>
+                            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">暂无扫描记录</div>
                         </div>
                     </div>
                 </div>
@@ -86,5 +86,64 @@
     </div>
 
     <script src="/static/js/app.js"></script>
+    <script>
+    // 仪表盘快速扫描按钮事件
+    (function() {
+        var quickScanBtn = document.getElementById('quick-scan-btn');
+        var targetInput = document.getElementById('scan-target');
+
+        if (!quickScanBtn || !targetInput) {
+            console.log('Quick scan elements not found on this page');
+            return;
+        }
+
+        quickScanBtn.addEventListener('click', function() {
+            var target = targetInput.value.trim();
+
+            // 校验
+            if (!target) {
+                showToast('请输入目标网段', 'warning');
+                return;
+            }
+
+            var ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,2})?$/;
+            if (!target.match(ipPattern)) {
+                showToast('请输入有效的格式，例如：192.168.1.0/24', 'warning');
+                return;
+            }
+
+            setButtonLoading(quickScanBtn, true);
+
+            fetch('/api/scan/submit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    target: target,
+                    scan_options: {
+                        port_scan: true,
+                        os_detection: true,
+                        vendor_detection: true
+                    }
+                })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                setButtonLoading(quickScanBtn, false);
+                if (data.task_id) {
+                    showToast('扫描任务已提交', 'success');
+                    targetInput.value = '';
+                } else {
+                    showToast('扫描失败：' + (data.detail || '未知错误'), 'error');
+                }
+            })
+            .catch(function(err) {
+                setButtonLoading(quickScanBtn, false);
+                showToast('提交失败，请检查网络连接', 'error');
+            });
+        });
+
+        console.log('Quick scan button event bound');
+    })();
+    </script>
 </body>
 </html>
