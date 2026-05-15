@@ -40,8 +40,8 @@
                     </div>
 
                     <div class="form-group">
-                        <div class="form-label">目标网段</div>
-                        <input type="text" id="scan-target" class="input" placeholder="192.168.1.0/24">
+                        <div class="form-label">目标</div>
+                        <input type="text" id="scan-target" class="input" placeholder="输入目标网段，例如：192.168.1.0/24">
                     </div>
 
                     <div class="form-group">
@@ -72,54 +72,69 @@
                         </select>
                     </div>
 
-                    <button type="button" class="btn-primary">开始扫描</button>
+                    <button type="button" id="scan-btn" class="btn-primary">开始扫描</button>
                 </form>
             </div>
         </div>
     </div>
 
     <script src="/static/js/app.js"></script>
-</body>
-</html>
-<script>
-// 扫描输入校验函数
-function validateScanTarget(target) {
-    if (!target || target.trim() === '') {
-        alert('请输入目标网段或 IP 地址');
-        return false;
-    }
-    
-    // IP 格式正则
-    var ipPattern = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(\/\d{1,2})?$/;
-    var match = target.match(ipPattern);
-    
-    if (!match) {
-        alert('请输入有效的 IP 或网段格式，例如：192.168.1.0/24');
-        return false;
-    }
-    
-    // 检查网段大小
-    if (match[2]) {
-        var subnet = parseInt(match[2].substring(1));
-        if (subnet < 8) {
-            alert('网段过大（/' + subnet + '），建议使用 /16 或更小子网以避免长时间扫描');
-            return false;
+    <script>
+    // Placeholder 动态切换
+    function updatePlaceholder() {
+        var scanType = document.querySelector('input[name="scanType"]:checked').value;
+        var targetInput = document.getElementById('scan-target');
+        if (scanType === 'single') {
+            targetInput.placeholder = '输入单个 IP，例如：192.168.1.100';
+        } else {
+            targetInput.placeholder = '输入目标网段，例如：192.168.1.0/24';
         }
     }
-    
-    return true;
-}
 
-// 扫描按钮事件绑定
-document.addEventListener('DOMContentLoaded', function() {
-    var scanBtn = document.querySelector('.btn-primary');
-    var targetInput = document.getElementById('scan-target');
-    
-    if (scanBtn && targetInput) {
-        scanBtn.addEventListener('click', function() {
-            var target = targetInput.value;
-            if (validateScanTarget(target)) {
-                // 提交扫描任务
+    // 扫描输入校验函数
+    function validateScanTarget(target, isSingle) {
+        if (!target || target.trim() === '') {
+            showToast('请输入目标', 'warning');
+            return false;
+        }
+        var ipPattern = isSingle
+            ? /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+            : /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d{1,2})?$/;
+        var match = target.match(ipPattern);
+        if (!match) {
+            var hint = isSingle ? '例如：192.168.1.100' : '例如：192.168.1.0/24';
+            showToast('请输入有效的格式，' + hint, 'warning');
+            return false;
+        }
+        if (!isSingle && match[2]) {
+            var subnet = parseInt(match[2].substring(1));
+            if (subnet < 8) {
+                showToast('网段过大（/' + subnet + '），建议使用 /16 或更小', 'warning');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 扫描按钮事件
+    document.addEventListener('DOMContentLoaded', function() {
+        var scanBtn = document.getElementById('scan-btn');
+        var targetInput = document.getElementById('scan-target');
+        var scanTypeRadios = document.querySelectorAll('input[name="scanType"]');
+
+        // 监听扫描类型切换
+        scanTypeRadios.forEach(function(radio) {
+            radio.addEventListener('change', updatePlaceholder);
+        });
+
+        if (scanBtn && targetInput) {
+            scanBtn.addEventListener('click', function() {
+                var target = targetInput.value.trim();
+                var isSingle = document.querySelector('input[name="scanType"]:checked').value === 'single';
+                if (!validateScanTarget(target, isSingle)) return;
+
+                setButtonLoading(scanBtn, true);
+
                 fetch('/api/scan/submit', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -131,20 +146,24 @@ document.addEventListener('DOMContentLoaded', function() {
                             vendor_detection: document.querySelector('input[name="vendorDetect"]')?.checked || true
                         }
                     })
-                }).then(function(res) {
-                    return res.json();
-                }).then(function(data) {
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    setButtonLoading(scanBtn, false);
                     if (data.task_id) {
-                        alert('扫描任务已提交');
+                        showToast('扫描任务已提交', 'success');
                         targetInput.value = '';
                     } else {
-                        alert('提交失败: ' + (data.detail || '未知错误'));
+                        showToast('扫描失败：' + (data.detail || '未知错误'), 'error');
                     }
-                }).catch(function(err) {
-                    alert('提交失败，请检查网络连接');
+                })
+                .catch(function(err) {
+                    setButtonLoading(scanBtn, false);
+                    showToast('提交失败，请检查网络连接', 'error');
                 });
-            }
-        });
-    }
-});
-</script>
+            });
+        }
+    });
+    </script>
+</body>
+</html>

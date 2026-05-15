@@ -254,3 +254,40 @@ if (document.readyState === 'loading') {
 } else {
     initApp();
 }
+// ===== Toast 提示系统 (v0.9.4) =====
+function showToast(message, type) {
+    var container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    
+    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+    toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
+    
+    container.appendChild(toast);
+    
+    setTimeout(function() {
+        toast.remove();
+        if (container.children.length === 0) container.remove();
+    }, 3000);
+}
+
+// ===== 按钮 Loading 状态 =====
+function setButtonLoading(btn, loading) {
+    if (loading) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.dataset.originalText = btn.textContent;
+        btn.textContent = '扫描中...';
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        btn.textContent = btn.dataset.originalText || '开始扫描';
+    }
+}
