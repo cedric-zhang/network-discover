@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 
-app = FastAPI(title="网络设备发现平台", version="0.9.9-fix5")
+app = FastAPI(title="网络设备发现平台", version="0.9.9-fix6")
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -34,7 +34,7 @@ async def asset_detail(ip: str):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.9.9-fix5"}
+    return {"status": "ok", "version": "0.9.9-fix6"}
 
 # 注册 API 路由
 from app.routers import scan

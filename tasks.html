@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix5">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix6">
     <style>
         .task-tabs {
             display: flex;
@@ -219,6 +219,7 @@
 
         /* 确认弹窗样式 */
         .confirm-overlay {
+            pointer-events: none;  /* 隐藏时不拦截点击 */
             position: fixed;
             top: 0;
             left: 0;
@@ -233,6 +234,7 @@
             transition: opacity 0.2s;
         }
         .confirm-overlay.show {
+            pointer-events: auto;  /* 显示时恢复拦截 */
             opacity: 1;
         }
         .confirm-dialog {
@@ -353,7 +355,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix5"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix6"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -364,7 +366,7 @@
     var pageSize = 10;
 
     function loadTasks() {
-        fetch('/api/scan/tasks')
+        fetch('/api/scan/tasks?page=' + currentPage + '&page_size=' + pageSize)
         .then(function(res) { return res.json(); })
         .then(function(data) {
             var newTasks = data.tasks || [];

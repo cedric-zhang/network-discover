@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QA 自动化测试脚本 - v0.9.9-fix5
+QA 自动化测试脚本 - v0.9.9-fix6
 每次部署后运行此脚本验证核心功能
 """
 
@@ -91,23 +91,47 @@ def test_task_persistence(result, task_id):
         return False
 
 def test_pagination(result):
-    """T04: 分页功能"""
+    """T04: 后端分页功能"""
     try:
-        res1 = requests.get(f"{BASE_URL}/api/scan/tasks", timeout=5)
+        # 测试第一页5条
+        res1 = requests.get(f"{BASE_URL}/api/scan/tasks?page=1&page_size=5", timeout=5)
         if res1.status_code != 200:
             result.add_fail("分页功能", "获取任务列表失败")
             return False
 
         data1 = res1.json()
+        page1_tasks = data1.get("tasks", [])
         total = data1.get("total", 0)
+        total_pages = data1.get("total_pages", 0)
 
-        # 如果总数超过10，验证前端分页逻辑（API本身返回所有数据）
-        if total > 10:
-            result.add_pass(f"分页功能 (共{total}条，前端分页)")
-            return True
-        else:
-            result.add_pass(f"分页功能 (数据量{total}条)")
-            return True
+        # 验证返回条数不超过page_size
+        if len(page1_tasks) > 5:
+            result.add_fail("分页功能", f"第1页返回{len(page1_tasks)}条，超过page_size=5")
+            return False
+
+        # 测试第二页
+        if total_pages >= 2:
+            res2 = requests.get(f"{BASE_URL}/api/scan/tasks?page=2&page_size=5", timeout=5)
+            data2 = res2.json()
+            page2_tasks = data2.get("tasks", [])
+            
+            # 验证两页数据不重复
+            page1_ids = [t.get("task_id") for t in page1_tasks]
+            page2_ids = [t.get("task_id") for t in page2_tasks]
+            overlap = set(page1_ids) & set(page2_ids)
+            if overlap:
+                result.add_fail("分页功能", f"第1页和第2页有重复数据")
+                return False
+        
+        # 测试超出范围
+        res999 = requests.get(f"{BASE_URL}/api/scan/tasks?page=999&page_size=5", timeout=5)
+        data999 = res999.json()
+        if data999.get("tasks") != [] or data999.get("total") != total:
+            result.add_fail("分页功能", f"超出范围的page应返回空列表")
+            return False
+
+        result.add_pass(f"分页功能 (共{total}条,{total_pages}页)")
+        return True
     except Exception as e:
         result.add_fail("分页功能", str(e))
         return False

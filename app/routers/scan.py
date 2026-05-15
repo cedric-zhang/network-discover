@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import Dict, List
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from typing import Dict, List, Optional
 from datetime import datetime
 import uuid
 from app.models import ScanSubmitRequest, ScanTaskResponse, ScanOptions, ScanResultResponse
@@ -40,11 +40,45 @@ async def submit_scan(request: ScanSubmitRequest, background_tasks: BackgroundTa
 
 
 @router.get("/scan/tasks")
-async def get_scan_tasks():
-    """Get all scan tasks list - read from database for persistence"""
+async def get_scan_tasks(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    status: Optional[str] = Query(None, description="状态筛选")
+):
+    """Get scan tasks list with pagination - read from database for persistence"""
     db: Session = SessionLocal()
     try:
-        db_tasks = db.query(ScanTask).order_by(ScanTask.created_at.desc()).all()
+        query = db.query(ScanTask).order_by(ScanTask.created_at.desc())
+        
+        # 状态筛选
+        if status:
+            status_map = {
+                "queued": ["pending", "queued"],
+                "running": ["running", "scanning"],
+                "completed": ["completed"],
+                "failed": ["failed"]
+            }
+            if status in status_map:
+                query = query.filter(ScanTask.status.in_(status_map[status]))
+            else:
+                query = query.filter(ScanTask.status == status)
+        
+        total = query.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+        
+        # 边界处理
+        if page > total_pages:
+            return {
+                "tasks": [],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages
+            }
+        
+        offset = (page - 1) * page_size
+        db_tasks = query.offset(offset).limit(page_size).all()
+        
         task_list = []
         for db_task in db_tasks:
             memory_task = scanner_service.active_scans.get(db_task.task_id)
@@ -68,14 +102,18 @@ async def get_scan_tasks():
                     "message": db_task.result_summary or ""
                 }
             task_list.append(task_data)
+        
         return {
             "tasks": task_list,
-            "total": len(task_list)
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
         }
     except Exception as e:
         import logging
         logging.error(f"Error getting scan tasks: {str(e)}")
-        return {"tasks": [], "total": 0, "error": str(e)}
+        return {"tasks": [], "total": 0, "page": page, "page_size": page_size, "total_pages": 0, "error": str(e)}
     finally:
         db.close()
 
