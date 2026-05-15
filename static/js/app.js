@@ -4,11 +4,10 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.7 fix10 - 永久测试版) =====
-// 不使用 setTimeout，Toast 永久显示用于诊断
+// ===== Toast 提示系统 (v0.9.7 正式版) =====
 function showToast(message, type) {
     type = type || "info";
-    console.log("[Toast] Creating permanent toast (no setTimeout):", message, type);
+    console.log("[Toast] Showing:", message, type);
 
     var container = document.getElementById("toast-container");
     if (!container) {
@@ -17,21 +16,11 @@ function showToast(message, type) {
         document.body.appendChild(container);
     }
 
-    // 强制设置容器样式
-    container.style.position = "fixed";
-    container.style.top = "20px";
-    container.style.right = "20px";
-    container.style.zIndex = "9999";
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    container.style.gap = "8px";
-    console.log("[Toast] Container style:", container.style.display, container.style.position);
+    // 设置容器样式
+    container.style.cssText = "position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;";
 
-    var bgColor = "#3b82f6";
-    if (type === "success") bgColor = "#10b981";
-    else if (type === "error") bgColor = "#ef4444";
-    else if (type === "warning") bgColor = "#f59e0b";
-
+    // 创建 toast
+    var bgColor = type === "success" ? "#10b981" : type === "error" ? "#ef4444" : type === "warning" ? "#f59e0b" : "#3b82f6";
     var icon = type === "success" ? "✅" : type === "error" ? "❌" : type === "warning" ? "⚠️" : "ℹ️";
 
     var toast = document.createElement("div");
@@ -40,10 +29,18 @@ function showToast(message, type) {
     toast.innerHTML = "<span>" + icon + "</span><span>" + message + "</span>";
 
     container.appendChild(toast);
-    console.log("[Toast] Toast appended. Container children:", container.children.length);
-    console.log("[Toast] Container display:", container.style.display);
 
-    // 测试版：不自动移除，Toast 永久显示
+    // 3秒后自动消失
+    setTimeout(function() {
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.3s";
+        setTimeout(function() {
+            toast.remove();
+            if (container.children.length === 0) {
+                container.style.display = "none";
+            }
+        }, 300);
+    }, 3000);
 }
 
 // ===== 按钮 Loading 状态 =====
