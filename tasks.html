@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix1-fix1">
     <style>
         .task-tabs {
             display: flex;
@@ -58,6 +58,11 @@
             font-size: 14px;
             color: var(--text-primary);
             font-weight: 500;
+        }
+        .task-name {
+            font-size: 12px;
+            color: var(--accent-cyan);
+            margin-top: 2px;
         }
         .task-status {
             display: flex;
@@ -201,7 +206,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix1-fix1"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -215,7 +220,7 @@
         .then(function(data) {
             var newTasks = data.tasks || [];
             var newJSON = JSON.stringify(newTasks.map(function(t) {
-                return { id: t.task_id, status: t.status, target: t.target, time: t.created_at };
+                return { id: t.task_id, status: t.status, target: t.target, name: t.name, time: t.created_at };
             }));
 
             // 只在数据变化时重新渲染，防止闪烁
@@ -260,12 +265,15 @@
             var targetType = task.target.includes('/') ? '网段' : '单IP';
             var timeStr = formatTime(task.created_at);
             var isChecked = selectedTasks.has(task.task_id) ? 'checked' : '';
+            var displayName = task.name ? task.name : task.target;
+            var nameDisplay = task.name ? '<div class="task-name">' + task.name + '</div>' : '';
 
             return '<div class="task-card">' +
                 '<input type="checkbox" class="task-checkbox task-item-checkbox" data-task-id="' + task.task_id + '" ' + isChecked + '>' +
                 '<div class="task-id">#' + taskIdShort + '</div>' +
                 '<div class="task-type">' + targetType + '</div>' +
-                '<div><div class="task-target">' + task.target + '</div>' +
+                '<div><div class="task-target">' + displayName + '</div>' +
+                nameDisplay +
                 '<div class="task-meta">' + timeStr + '</div></div>' +
                 '<div class="task-status"><span class="status-dot status-' + normalizeStatus(task.status) + '"></span>' +
                 statusInfo.text + '</div>' +

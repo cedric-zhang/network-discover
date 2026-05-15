@@ -1,6 +1,6 @@
 /*
  * 网络设备发现平台 - JavaScript入口文件
- * 版本: 动态加载
+ * 版本: v0.9.9-fix1
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
@@ -57,18 +57,78 @@ function setButtonLoading(btn, loading) {
 // 图表实例
 var statusChart = null;
 var vendorChart = null;
+var osChart = null;
 
-// 深色主题配色
+// 深色主题配色 - 状态颜色
 var chartColors = {
-    online: '#27ae60',
-    offline: '#e74c3c',
-    unknown: '#6b7280',
-    primary: '#00d4ff',
-    secondary: '#8e44ad',
-    tertiary: '#f39c12',
-    quaternary: '#1abc9c',
-    quinary: '#3498db'
+    online: '#22c55e',     // 绿色 - 在线
+    offline: '#ef4444',    // 红色 - 离线
+    unknown: '#6b7280',    // 灰色 - 未知
+    primary: '#00d4ff',    // 青色 - 主色
+    secondary: '#8e44ad',  // 紫色
+    tertiary: '#f59e0b',   // 黄色
+    quaternary: '#1abc9c', // 青绿
+    quinary: '#3498db'     // 蓝色
 };
+
+// 厂商颜色映射表 - 不同厂商用不同颜色
+var vendorColorMap = {
+    'Cisco': '#3b82f6',       // 蓝
+    'Huawei': '#ef4444',      // 红
+    'H3C': '#10b981',         // 绿
+    'Juniper': '#f59e0b',     // 黄
+    'Dell': '#8b5cf6',        // 紫
+    'HP': '#ec4899',          // 粉
+    'Lenovo': '#06b6d4',      // 青
+    'Intel': '#64748b',       // 灰蓝
+    'AMD': '#f97316',         // 橙
+    'Unknown': '#6b7280',     // 灰
+    '未知': '#6b7280',        // 灰
+    'unknown': '#6b7280'      // 灰
+};
+
+// OS颜色映射表 - 不同系统用不同颜色
+var osColorMap = {
+    'Linux': '#10b981',       // 绿
+    'Ubuntu': '#10b981',      // 绿
+    'CentOS': '#10b981',      // 绿
+    'RedHat': '#ef4444',      // 红
+    'Debian': '#10b981',      // 绿
+    'Windows': '#3b82f6',     // 蓝
+    'Windows Server': '#3b82f6', // 蓝
+    'macOS': '#8b5cf6',       // 紫
+    'Darwin': '#8b5cf6',      // 紫
+    'FreeBSD': '#06b6d4',     // 青
+    'Android': '#22c55e',     // 绿
+    'iOS': '#8b5cf6',         // 紫
+    'Unknown': '#6b7280',     // 灰
+    '未知': '#6b7280',        // 灰
+    'unknown': '#6b7280'      // 灰
+};
+
+// 默认颜色序列（用于未知厂商/OS）
+var defaultColorSequence = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
+
+// 根据名称获取颜色（厂商或OS）
+function getColorForLabel(label, colorMap) {
+    // 直接匹配
+    if (colorMap[label]) {
+        return colorMap[label];
+    }
+    // 部分匹配（如 "Linux 5.4" 匹配 Linux）
+    for (var key in colorMap) {
+        if (label.toLowerCase().includes(key.toLowerCase())) {
+            return colorMap[key];
+        }
+    }
+    // 未知/unknown匹配
+    if (label.toLowerCase().includes('unknown') || label.toLowerCase().includes('未知')) {
+        return '#6b7280';
+    }
+    // 返回默认序列中的颜色（按索引轮换）
+    var index = Object.keys(colorMap).length % defaultColorSequence.length;
+    return defaultColorSequence[index];
+}
 
 // ===== 统一初始化函数 =====
 async function initApp() {
@@ -112,15 +172,22 @@ async function loadDashboardStats() {
         // 计算在线/离线/未知
         var online = 0, offline = 0, unknown = 0;
         var vendorStats = {};
+        var osStats = {};
 
         data.assets.forEach(function(asset) {
             if (asset.status === 'up' || asset.status === 'online') online++;
             else if (asset.status === 'down' || asset.status === 'offline') offline++;
             else unknown++;
 
-            var key = asset.vendor || asset.os_name || '未知';
-            if (key.trim() === '') key = asset.os_name || '未知';
-            vendorStats[key] = (vendorStats[key] || 0) + 1;
+            // 统计厂商
+            var vendorKey = asset.vendor || '未知';
+            if (vendorKey.trim() === '') vendorKey = '未知';
+            vendorStats[vendorKey] = (vendorStats[vendorKey] || 0) + 1;
+
+            // 统计OS
+            var osKey = asset.os_name || '未知';
+            if (osKey.trim() === '') osKey = '未知';
+            osStats[osKey] = (osStats[osKey] || 0) + 1;
         });
 
         updateStatCard('stat-total-ip', total);
@@ -130,7 +197,7 @@ async function loadDashboardStats() {
 
         console.log('Dashboard stats loaded:', {total: total, online: online, offline: offline, unknown: unknown});
 
-        updateCharts(online, offline, unknown, vendorStats);
+        updateCharts(online, offline, unknown, vendorStats, osStats);
 
         // 加载最近扫描记录
         await loadRecentScans();
@@ -168,9 +235,10 @@ async function loadRecentScans() {
             var statusText = task.status === 'completed' ? '完成' :
                             task.status === 'running' || task.status === 'scanning' ? '运行' :
                             task.status === 'queued' || task.status === 'pending' ? '排队' : '失败';
+            var displayName = task.name || task.target;
             return '<div class="scan-record-item">' +
                 '<span class="scan-time">' + timeStr + '</span>' +
-                '<span class="scan-target">' + task.target + '</span>' +
+                '<span class="scan-target">' + displayName + '</span>' +
                 '<span class="scan-status">' + statusIcon + ' ' + statusText + '</span>' +
             '</div>';
         }).join('');
@@ -189,7 +257,7 @@ function updateStatCard(id, value) {
 }
 
 // ===== 图表渲染 =====
-function updateCharts(online, offline, unknown, vendorStats) {
+function updateCharts(online, offline, unknown, vendorStats, osStats) {
     if (typeof Chart === 'undefined') {
         console.error('Chart.js not loaded');
         showChartFallback();
@@ -201,6 +269,7 @@ function updateCharts(online, offline, unknown, vendorStats) {
 
     if (!statusCanvas || !vendorCanvas) return;
 
+    // 1. 状态分布图（环形图）
     var statusCtx = statusCanvas.getContext('2d');
     if (statusChart) {
         statusChart.destroy();
@@ -242,6 +311,7 @@ function updateCharts(online, offline, unknown, vendorStats) {
         }
     });
 
+    // 2. 厂商分布图（柱状图）- 使用厂商颜色映射
     var vendorCtx = vendorCanvas.getContext('2d');
     if (vendorChart) {
         vendorChart.destroy();
@@ -249,21 +319,14 @@ function updateCharts(online, offline, unknown, vendorStats) {
 
     var sortedVendors = Object.entries(vendorStats)
         .sort(function(a, b) { return b[1] - a[1]; })
-        .slice(0, 5);
+        .slice(0, 6);
 
     var vendorLabels = sortedVendors.map(function(item) { return item[0]; });
     var vendorData = sortedVendors.map(function(item) { return item[1]; });
-    // 厂商图表颜色 - "未知"统一使用灰色
+    // 根据厂商名称分配颜色
     var vendorColors = vendorLabels.map(function(label) {
-        if (label === "未知" || label.toLowerCase().includes("unknown")) {
-            return chartColors.unknown;
-        }
-        return chartColors.primary;
+        return getColorForLabel(label, vendorColorMap);
     });
-    // 如果没有"未知"，使用渐变色
-    if (!vendorLabels.includes("未知")) {
-        vendorColors = [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.quaternary, chartColors.quinary].slice(0, vendorLabels.length);
-    }
 
     vendorChart = new Chart(vendorCtx, {
         type: 'bar',
@@ -303,7 +366,65 @@ function updateCharts(online, offline, unknown, vendorStats) {
         }
     });
 
-    console.log('Charts updated');
+    // 3. OS分布图（如果存在）
+    var osCanvas = document.getElementById('chart-os');
+    if (osCanvas) {
+        var osCtx = osCanvas.getContext('2d');
+        if (osChart) {
+            osChart.destroy();
+        }
+
+        var sortedOS = Object.entries(osStats)
+            .sort(function(a, b) { return b[1] - a[1]; })
+            .slice(0, 6);
+
+        var osLabels = sortedOS.map(function(item) { return item[0]; });
+        var osData = sortedOS.map(function(item) { return item[1]; });
+        // 根据OS名称分配颜色
+        var osColors = osLabels.map(function(label) {
+            return getColorForLabel(label, osColorMap);
+        });
+
+        osChart = new Chart(osCtx, {
+            type: 'bar',
+            data: {
+                labels: osLabels,
+                datasets: [{
+                    label: '数量',
+                    data: osData,
+                    backgroundColor: osColors,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return '数量: ' + context.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#b8c5d6', maxRotation: 45, minRotation: 0 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#b8c5d6', stepSize: 1 },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    console.log('Charts updated with vendor/OS color mapping');
 }
 
 function showChartFallback() {

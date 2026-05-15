@@ -8,7 +8,7 @@ from app.models import ScanTask, IPAsset
 
 class TaskManager:
     def __init__(self):
-        # Task storage (in memory, for v0.3.0)
+        # Task storage (in memory, for active tasks only)
         self.tasks: Dict[str, dict] = {}
 
     def create_task(self, scan_request: ScanSubmitRequest) -> str:
@@ -17,11 +17,13 @@ class TaskManager:
         import time
 
         task_id = f"task_{int(time.time())}_{uuid4().hex[:8]}"
+        task_name = scan_request.name or ""  # Get name from request
 
         task = {
             "task_id": task_id,
             "status": "pending",
             "target": scan_request.target,
+            "name": task_name,
             "scan_options": scan_request.scan_options.dict(),
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
@@ -30,12 +32,13 @@ class TaskManager:
 
         self.tasks[task_id] = task
 
-        # Also create record in database
+        # Create record in database (persistent storage)
         db: Session = SessionLocal()
         try:
             db_task = ScanTask(
                 task_id=task_id,
                 target=scan_request.target,
+                name=task_name,
                 status="pending"
             )
             db.add(db_task)
@@ -103,18 +106,16 @@ class TaskManager:
                     host = HostInfo(
                         ip=asset.ip,
                         status=asset.status,
-                        os=asset.os_name,  # This was the mapping issue!
+                        os=asset.os_name,
                         vendor=asset.vendor,
                         hostname=asset.hostname,
-                        ports=[]  # We need to recreate ports from open_ports field
+                        ports=[]
                     )
 
                     # Convert open_ports JSON list back to PortInfo objects
-                    # Now supports both old format "22/tcp" and new format {"port":22, "service":"ssh"}
                     if asset.open_ports and isinstance(asset.open_ports, list):
                         for port_data in asset.open_ports:
                             if isinstance(port_data, dict):
-                                # New format: full port object
                                 port_info = PortInfo(
                                     port=port_data.get("port", 0),
                                     protocol=port_data.get("protocol", "tcp"),
@@ -123,7 +124,6 @@ class TaskManager:
                                     version=port_data.get("version", "")
                                 )
                             elif isinstance(port_data, str) and '/' in port_data:
-                                # Old format: "22/tcp" - backwards compatible
                                 port_num, protocol = port_data.split('/', 1)
                                 port_info = PortInfo(
                                     port=int(port_num),
@@ -144,7 +144,6 @@ class TaskManager:
             except Exception as e:
                 import logging
                 logging.error(f"Error reconstructing result from database: {str(e)}")
-                # Fallback to just return basic info from task
                 pass
 
             # If not found in IPAsset, return basic task status

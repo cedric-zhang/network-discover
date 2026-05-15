@@ -32,6 +32,7 @@ async def submit_scan(request: ScanSubmitRequest, background_tasks: BackgroundTa
         task_id=task["task_id"],
         status=task["status"],
         target=task["target"],
+        name=task.get("name"),  # Include task name
         scan_options=ScanOptions(**task["scan_options"]),
         created_at=task["created_at"],
         updated_at=task["updated_at"],
@@ -41,21 +42,57 @@ async def submit_scan(request: ScanSubmitRequest, background_tasks: BackgroundTa
 
 @router.get("/scan/tasks")
 async def get_scan_tasks():
-    """Get all scan tasks list"""
-    from app.services.scanner import scanner_service
-    task_list = list(scanner_service.active_scans.values())
+    """Get all scan tasks list - read from database for persistence"""
+    db: Session = SessionLocal()
+    try:
+        # Read all tasks from database (persistent storage)
+        db_tasks = db.query(ScanTask).order_by(ScanTask.created_at.desc()).all()
 
-    return {
-        "tasks": task_list,
-        "total": len(task_list)
-    }
+        task_list = []
+        for db_task in db_tasks:
+            # Check if task is currently active in memory (for real-time status)
+            memory_task = scanner_service.active_scans.get(db_task.task_id)
+
+            if memory_task:
+                # Use memory status for active tasks (more real-time)
+                task_data = memory_task.copy()
+                # Ensure name from database is used if memory doesn't have it
+                if not task_data.get("name") and db_task.name:
+                    task_data["name"] = db_task.name
+            else:
+                # Use database data for completed/failed tasks
+                task_data = {
+                    "task_id": db_task.task_id,
+                    "name": db_task.name or "",
+                    "status": db_task.status,
+                    "target": db_task.target,
+                    "scan_options": {
+                        "port_scan": True,
+                        "os_detection": True,
+                        "vendor_detection": True
+                    },
+                    "created_at": str(db_task.created_at),
+                    "updated_at": str(db_task.updated_at),
+                    "message": db_task.result_summary or ""
+                }
+
+            task_list.append(task_data)
+
+        return {
+            "tasks": task_list,
+            "total": len(task_list)
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"Error getting scan tasks: {str(e)}")
+        return {"tasks": [], "total": 0, "error": str(e)}
+    finally:
+        db.close()
 
 
 @router.get("/scan/tasks/{task_id}", response_model=ScanTaskResponse)
 async def get_scan_task(task_id: str):
     """Get single scan task details"""
-    from app.services.scanner import scanner_service
-
     # First check tasks in memory
     if task_id in scanner_service.active_scans:
         task = scanner_service.active_scans[task_id]
@@ -63,6 +100,7 @@ async def get_scan_task(task_id: str):
             task_id=task["task_id"],
             status=task["status"],
             target=task["target"],
+            name=task.get("name"),
             scan_options=ScanOptions(**task["scan_options"]),
             created_at=task["created_at"],
             updated_at=task["updated_at"],
@@ -78,10 +116,11 @@ async def get_scan_task(task_id: str):
                 task_id=db_task.task_id,
                 status=db_task.status,
                 target=db_task.target,
-                scan_options=ScanOptions(port_scan=True, os_detection=True, vendor_detection=True),  # default values
+                name=db_task.name,
+                scan_options=ScanOptions(port_scan=True, os_detection=True, vendor_detection=True),
                 created_at=str(db_task.created_at),
                 updated_at=str(db_task.updated_at),
-                message=f"Task from DB with status: {db_task.status}"
+                message=db_task.result_summary or f"Task from DB with status: {db_task.status}"
             )
     except Exception as e:
         import logging
@@ -89,14 +128,12 @@ async def get_scan_task(task_id: str):
     finally:
         db.close()
 
-    # If not found anywhere, return 404
     raise HTTPException(status_code=404, detail="Task not found")
 
 
 @router.delete("/scan/tasks/{task_id}")
 async def delete_scan_task(task_id: str):
     """Delete a single scan task"""
-    from app.services.scanner import scanner_service
     import logging
 
     deleted_from_memory = False
@@ -136,7 +173,6 @@ async def delete_scan_task(task_id: str):
 @router.delete("/scan/tasks/batch")
 async def delete_scan_tasks_batch(task_ids: List[str]):
     """Delete multiple scan tasks"""
-    from app.services.scanner import scanner_service
     import logging
 
     deleted_count = 0

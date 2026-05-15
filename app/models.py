@@ -37,6 +37,7 @@ class ScanOptions(BaseModel):
 class ScanSubmitRequest(BaseModel):
     """扫描提交请求模型"""
     target: str
+    name: Optional[str] = None  # 用户自定义任务名称
     scan_options: ScanOptions = ScanOptions()
 
     @field_validator("target")
@@ -66,6 +67,7 @@ class ScanTaskResponse(BaseModel):
     task_id: str
     status: str
     target: str
+    name: Optional[str] = None  # 任务名称
     scan_options: ScanOptions
     created_at: str
     updated_at: str
@@ -82,7 +84,7 @@ class ScanResultResponse(BaseModel):
 # SQLAlchemy Models (for Database)
 class IPAsset(Base):
     __tablename__ = "ip_assets"
-    
+
     ip = Column(String, primary_key=True)
     status = Column(String, default="unknown")  # online / offline / unknown
     hostname = Column(String, default="")
@@ -94,11 +96,9 @@ class IPAsset(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-
-
 class Schedule(Base):
     __tablename__ = "schedules"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     target = Column(String, nullable=False)
@@ -107,11 +107,13 @@ class Schedule(Base):
     last_run_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class ScanTask(Base):
     __tablename__ = "scan_tasks"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String, unique=True, index=True)
+    name = Column(String, nullable=True)  # 用户自定义任务名称
     target = Column(String)
     status = Column(String, default="pending")
     result_summary = Column(String, nullable=True)
