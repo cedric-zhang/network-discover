@@ -36,7 +36,7 @@ function showToast(message, type) {
     else if (type === 'warning') bgColor = '#f59e0b';
 
     // 直接设置 toast 样式（不依赖 CSS 类）
-    toast.style.cssText = 'padding: 12px 20px; border-radius: 12px; font-size: 14px; color: #fff; background: ' + bgColor + '; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 8px; pointer-events: auto; opacity: 1;';
+    toast.style.cssText = 'padding: 12px 20px; border-radius: 12px; font-size: 14px; color: #fff; background: ' + bgColor + '; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 8px; position: relative; z-index: 10000; pointer-events: auto; opacity: 1;';
 
     var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
     toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';

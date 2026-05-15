@@ -810,6 +810,7 @@ tbody tr:last-child td {
 }
 
 .toast {
+  position: relative; z-index: 10000;
   padding: 12px 20px;
   border-radius: 12px;
   font-size: 14px;
