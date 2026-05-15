@@ -131,8 +131,10 @@
             .then(function(data) {
                 setButtonLoading(quickScanBtn, false);
                 if (data.task_id) {
-                    showToast('扫描任务已提交', 'success');
+                    showToast('扫描任务已创建 (#' + data.task_id.substring(0,8) + ')', 'success');
                     targetInput.value = '';
+                    // 刷新最近扫描记录
+                    if (typeof loadRecentScans === 'function') loadRecentScans();
                 } else {
                     showToast('扫描失败：' + (data.detail || '未知错误'), 'error');
                 }
@@ -146,6 +148,33 @@
         console.log('Quick scan button event bound');
     })();
     </script>
+
+    <style>
+    .scan-record-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        font-size: 13px;
+    }
+    .scan-record-item:last-child {
+        border-bottom: none;
+    }
+    .scan-time {
+        color: var(--text-muted);
+        width: 50px;
+    }
+    .scan-target {
+        color: var(--text-primary);
+        flex: 1;
+        margin-left: 12px;
+    }
+    .scan-status {
+        color: var(--text-secondary);
+        width: 80px;
+        text-align: right;
+    }
+    </style>
 <div id="toast-container"></div>
 </body>
 </html>

@@ -116,15 +116,25 @@
     <script>
     var currentFilter = 'all';
     var allTasks = [];
+    var lastTasksJSON = '';
     var pollInterval = null;
 
     function loadTasks() {
         fetch('/api/scan/tasks')
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            allTasks = data.tasks || [];
-            renderTasks();
-            updateCounts();
+            var newTasks = data.tasks || [];
+            var newJSON = JSON.stringify(newTasks.map(function(t) {
+                return { id: t.task_id, status: t.status, target: t.target, time: t.created_at };
+            }));
+
+            // 只在数据变化时重新渲染，防止闪烁
+            if (newJSON !== lastTasksJSON) {
+                lastTasksJSON = newJSON;
+                allTasks = newTasks;
+                renderTasks();
+                updateCounts();
+            }
         })
         .catch(function(err) {
             console.error('加载任务失败:', err);
@@ -136,7 +146,13 @@
     function renderTasks() {
         var filtered = currentFilter === 'all'
             ? allTasks
-            : allTasks.filter(function(t) { return t.status === currentFilter; });
+            : allTasks.filter(function(t) {
+                // 运行中包括 running、scanning、pending
+                if (currentFilter === 'running') {
+                    return t.status === 'running' || t.status === 'scanning' || t.status === 'pending';
+                }
+                return t.status === currentFilter;
+            });
 
         var container = document.getElementById('task-list');
 
@@ -156,15 +172,22 @@
                 '<div class="task-type">' + targetType + '</div>' +
                 '<div><div class="task-target">' + task.target + '</div>' +
                 '<div class="task-meta">' + timeStr + '</div></div>' +
-                '<div class="task-status"><span class="status-dot status-' + task.status + '"></span>' +
+                '<div class="task-status"><span class="status-dot status-' + normalizeStatus(task.status) + '"></span>' +
                 statusInfo.text + '</div>' +
             '</div>';
         }).join('');
     }
 
+    // 状态标准化（用于 CSS 类名）
+    function normalizeStatus(status) {
+        if (status === 'scanning' || status === 'pending') return 'running';
+        return status;
+    }
+
     function getStatusInfo(status) {
         var map = {
             'queued': { text: '排队中', color: '#f59e0b' },
+            'pending': { text: '排队中', color: '#f59e0b' },
             'running': { text: '运行中', color: '#3b82f6' },
             'scanning': { text: '运行中', color: '#3b82f6' },
             'completed': { text: '已完成', color: '#22c55e' },
@@ -182,7 +205,7 @@
     function updateCounts() {
         var counts = { all: allTasks.length, queued: 0, running: 0, completed: 0, failed: 0 };
         allTasks.forEach(function(t) {
-            if (t.status === 'queued') counts.queued++;
+            if (t.status === 'queued' || t.status === 'pending') counts.queued++;
             else if (t.status === 'running' || t.status === 'scanning') counts.running++;
             else if (t.status === 'completed') counts.completed++;
             else if (t.status === 'failed') counts.failed++;

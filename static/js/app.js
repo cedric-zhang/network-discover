@@ -51,7 +51,7 @@ var vendorChart = null;
 var chartColors = {
     online: '#27ae60',
     offline: '#e74c3c',
-    unknown: '#95a5a6',
+    unknown: '#6b7280',
     primary: '#00d4ff',
     secondary: '#8e44ad',
     tertiary: '#f39c12',
@@ -121,9 +121,54 @@ async function loadDashboardStats() {
 
         updateCharts(online, offline, unknown, vendorStats);
 
+        // 加载最近扫描记录
+        await loadRecentScans();
+
     } catch (e) {
         console.error('Failed to load dashboard stats:', e);
         showChartFallback();
+    }
+}
+
+// ===== 最近扫描记录 =====
+async function loadRecentScans() {
+    var container = document.getElementById('recent-scans-list');
+    if (!container) return;
+
+    try {
+        var response = await fetch('/api/scan/tasks');
+        var data = await response.json();
+
+        var tasks = data.tasks || [];
+        if (tasks.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">暂无扫描记录</div>';
+            return;
+        }
+
+        // 取最近5条，按时间倒序
+        var recent = tasks.slice(0, 5);
+
+        var html = recent.map(function(task) {
+            var time = new Date(task.created_at);
+            var timeStr = time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            var statusIcon = task.status === 'completed' ? '✅' :
+                            task.status === 'running' || task.status === 'scanning' ? '🔵' :
+                            task.status === 'queued' || task.status === 'pending' ? '🟡' : '❌';
+            var statusText = task.status === 'completed' ? '完成' :
+                            task.status === 'running' || task.status === 'scanning' ? '运行' :
+                            task.status === 'queued' || task.status === 'pending' ? '排队' : '失败';
+            return '<div class="scan-record-item">' +
+                '<span class="scan-time">' + timeStr + '</span>' +
+                '<span class="scan-target">' + task.target + '</span>' +
+                '<span class="scan-status">' + statusIcon + ' ' + statusText + '</span>' +
+            '</div>';
+        }).join('');
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error('Failed to load recent scans:', e);
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">加载失败</div>';
     }
 }
 
