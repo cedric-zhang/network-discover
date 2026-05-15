@@ -26,6 +26,9 @@ function showToast(message, type) {
     // 创建 toast 元素
     var toast = document.createElement('div');
 
+    // 设置 className（关键！）
+    toast.className = 'toast toast-' + type;
+
     // 根据类型设置背景色
     var bgColor = '#3b82f6'; // info 默认蓝色
     if (type === 'success') bgColor = '#10b981';
