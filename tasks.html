@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix2">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix3">
     <style>
         .task-tabs {
             display: flex;
@@ -259,7 +259,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix2"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix3"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -482,19 +482,36 @@
     }
 
     function batchDeleteTasks(taskIds) {
+        var btn = document.getElementById('batch-delete-btn');
+        btn.disabled = true;
+        btn.textContent = '删除中...';
+
         fetch('/api/scan/tasks/batch', {
-            method: 'DELETE',
+            method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(taskIds)
+            body: JSON.stringify({ids: taskIds})
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            return res.json().then(function(data) {
+                if (!res.ok) {
+                    throw new Error(data.detail || '删除失败');
+                }
+                return data;
+            });
+        })
         .then(function(data) {
-            showToast('已删除 ' + data.deleted_count + ' 个任务', 'success');
+            showToast(data.message || '已删除 ' + data.deleted + ' 个任务', 'success');
             selectedTasks.clear();
             loadTasks();
         })
         .catch(function(err) {
-            showToast('批量删除失败', 'error');
+            showToast('批量删除失败: ' + err.message, 'error');
+            console.error('Batch delete error:', err);
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = '批量删除';
+            updateSelectedCount();
         });
     }
 
