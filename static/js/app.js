@@ -4,69 +4,46 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.7 fix9) =====
-// 必须在文件开头定义，确保全局可用
+// ===== Toast 提示系统 (v0.9.7 fix10 - 永久测试版) =====
+// 不使用 setTimeout，Toast 永久显示用于诊断
 function showToast(message, type) {
-    var startTime = performance.now();
-    console.log('[Toast] Called at T=' + startTime.toFixed(0) + 'ms, message:', message, 'type:', type);
-    type = type || 'info';
+    type = type || "info";
+    console.log("[Toast] Creating permanent toast (no setTimeout):", message, type);
 
-    // 检查 setTimeout 是否被篡改
-    console.log('[Toast] setTimeout type:', typeof setTimeout, 'native:', setTimeout.toString().substring(0, 50));
-
-    // 获取或创建容器
-    var container = document.getElementById('toast-container');
+    var container = document.getElementById("toast-container");
     if (!container) {
-        console.log('[Toast] Creating new container');
-        container = document.createElement('div');
-        container.id = 'toast-container';
+        container = document.createElement("div");
+        container.id = "toast-container";
         document.body.appendChild(container);
     }
 
-    // 直接设置容器样式
-    container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none;';
+    // 强制设置容器样式
+    container.style.position = "fixed";
+    container.style.top = "20px";
+    container.style.right = "20px";
+    container.style.zIndex = "9999";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.gap = "8px";
+    console.log("[Toast] Container style:", container.style.display, container.style.position);
 
-    // 创建 toast 元素
-    var toast = document.createElement('div');
-    toast.className = 'toast toast-' + type;
+    var bgColor = "#3b82f6";
+    if (type === "success") bgColor = "#10b981";
+    else if (type === "error") bgColor = "#ef4444";
+    else if (type === "warning") bgColor = "#f59e0b";
 
-    // 根据类型设置背景色
-    var bgColor = '#3b82f6';
-    if (type === 'success') bgColor = '#10b981';
-    else if (type === 'error') bgColor = '#ef4444';
-    else if (type === 'warning') bgColor = '#f59e0b';
+    var icon = type === "success" ? "✅" : type === "error" ? "❌" : type === "warning" ? "⚠️" : "ℹ️";
 
-    // 直接设置 toast 样式
-    toast.style.cssText = 'padding: 12px 20px; border-radius: 12px; font-size: 14px; color: #fff; background: ' + bgColor + '; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 8px; position: relative; z-index: 10000; pointer-events: auto; opacity: 1;';
-
-    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
-    toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
+    var toast = document.createElement("div");
+    toast.className = "toast toast-" + type;
+    toast.style.cssText = "padding:12px 20px;border-radius:12px;font-size:14px;color:#fff;background:" + bgColor + ";box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;z-index:10000;opacity:1;";
+    toast.innerHTML = "<span>" + icon + "</span><span>" + message + "</span>";
 
     container.appendChild(toast);
-    var appendTime = performance.now();
-    console.log('[Toast] Toast appended at T=' + appendTime.toFixed(0) + 'ms (elapsed: ' + (appendTime - startTime).toFixed(0) + 'ms)');
+    console.log("[Toast] Toast appended. Container children:", container.children.length);
+    console.log("[Toast] Container display:", container.style.display);
 
-    // 使用 window.setTimeout 确保 native 版本
-    var removeDelay = 3000;
-    var fadeDelay = 300;
-
-    window.setTimeout(function onRemoveTimeout() {
-        var fireTime = performance.now();
-        console.log('[Toast] TIMEOUT FIRED at T=' + fireTime.toFixed(0) + 'ms (elapsed since append: ' + (fireTime - appendTime).toFixed(0) + 'ms)');
-
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s ease';
-
-        window.setTimeout(function onFadeTimeout() {
-            toast.remove();
-            if (container.children.length === 0) {
-                container.style.display = 'none';
-            }
-            console.log('[Toast] Toast removed');
-        }, fadeDelay);
-    }, removeDelay);
-
-    console.log('[Toast] setTimeout() returned, waiting ' + removeDelay + 'ms...');
+    // 测试版：不自动移除，Toast 永久显示
 }
 
 // ===== 按钮 Loading 状态 =====
