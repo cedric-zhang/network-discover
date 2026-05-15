@@ -1,6 +1,6 @@
 /*
  * 网络设备发现平台 - JavaScript入口文件
- * 版本: v0.9.1
+ * 版本: 动态加载
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
@@ -22,7 +22,7 @@ var chartColors = {
 
 // ===== 统一初始化函数 =====
 async function initApp() {
-    console.log('Network Discovery Platform UI v0.9.1 initializing...');
+    console.log("Network Discovery Platform UI initializing...");
 
     // 1. 加载版本号
     var versionEl = document.getElementById('app-version');

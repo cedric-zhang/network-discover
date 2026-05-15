@@ -137,7 +137,7 @@ body {
 /* === Bento Grid 布局 === */
 .bento-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-6);
   margin-bottom: var(--space-6);
 }
