@@ -22,6 +22,7 @@ router = APIRouter()
 
 
 class AssetResponse(BaseModel):
+    id: int
     ip: str
     status: str
     hostname: str
@@ -65,6 +66,7 @@ def get_assets(
     assets = []
     for asset_db in assets_db:
         asset = AssetResponse(
+            id=asset_db.id,
             ip=asset_db.ip,
             status=asset_db.status,
             hostname=asset_db.hostname,
@@ -158,6 +160,7 @@ def get_asset(ip: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Asset not found")
     
     return AssetResponse(
+        id=asset.id,
         ip=asset.ip,
         status=asset.status,
         hostname=asset.hostname,
@@ -168,3 +171,16 @@ def get_asset(ip: str, db: Session = Depends(get_db)):
         last_scan_at=asset.last_scan_at.isoformat() if asset.last_scan_at else None,
         created_at=asset.created_at.isoformat() if asset.created_at else None
     )
+
+
+@router.delete("/assets/{asset_id}")
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    """删除指定资产"""
+    asset = db.query(IPAsset).filter(IPAsset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="资产不存在")
+    deleted_ip = asset.ip
+    db.delete(asset)
+    db.commit()
+    return {"message": "已删除", "ip": deleted_ip}
+
