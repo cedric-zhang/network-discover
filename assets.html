@@ -4,10 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 资产清单</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix2">
+    <style>
+    .btn-delete {
+        padding: 4px 12px;
+        border-radius: 6px;
+        background: transparent;
+        color: #ef4444;
+        border: 1px solid #ef4444;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 13px;
+    }
+    .btn-delete:hover {
+        background: #ef4444;
+        color: white;
+    }
+    /* 分页样式 */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+        padding: 16px;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(.disabled) {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+    .pagination-btn.active {
+        background: var(--accent-cyan);
+        color: var(--bg-primary);
+        border-color: var(--accent-cyan);
+    }
+    .pagination-btn.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-info {
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+    </style>
 </head>
 <body>
-    <!-- 顶部导航栏 -->
     <nav class="navbar">
         <div class="brand">网络设备发现平台 <span id="app-version"></span></div>
         <div class="links">
@@ -23,7 +74,6 @@
             <div class="page-title">资产清单</div>
             <div class="page-subtitle" id="asset-count">已发现资产加载中...</div>
 
-            <!-- 筛选栏 -->
             <div class="filter-bar">
                 <div class="filter-input">
                     <input type="text" class="input" id="search-input" placeholder="搜索 IP 或主机名...">
@@ -40,7 +90,6 @@
                 <button class="btn-secondary" onclick="exportCSV()">导出 CSV</button>
             </div>
 
-            <!-- 表格 -->
             <div class="table-container">
                 <table>
                     <thead>
@@ -60,19 +109,22 @@
                     </tbody>
                 </table>
             </div>
+            <div class="pagination hidden" id="pagination"></div>
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix2"></script>
     <script>
-    // 格式化日期时间
+    var currentPage = 1;
+    var pageSize = 10;
+    var totalAssets = 0;
+
     function formatDateTime(dateStr) {
         if (!dateStr) return '-';
         var date = new Date(dateStr);
         return date.toLocaleString('zh-CN');
     }
 
-    // 删除资产
     function deleteAsset(ip) {
         if (!confirm('确认删除设备 ' + ip + ' 吗？\n此操作将永久移除该资产记录。')) {
             return;
@@ -96,23 +148,24 @@
         });
     }
 
-    // 加载资产列表
     function loadAssets() {
         var searchInput = document.getElementById('search-input').value;
         var statusFilter = document.getElementById('status-filter').value;
 
-        var url = '/api/assets/?page=1&page_size=50';
+        var url = '/api/assets/?page=' + currentPage + '&page_size=' + pageSize;
         if (searchInput) url += '&search=' + encodeURIComponent(searchInput);
         if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
 
         fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            document.getElementById('asset-count').textContent = '已发现 ' + data.total + ' 个资产';
+            totalAssets = data.total || 0;
+            document.getElementById('asset-count').textContent = '已发现 ' + totalAssets + ' 个资产';
 
             var tbody = document.getElementById('assets-table');
             if (data.assets.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无发现资产，执行扫描后将自动显示</td></tr>';
+                document.getElementById('pagination').classList.add('hidden');
                 return;
             }
 
@@ -120,7 +173,6 @@
             data.assets.forEach(function(asset) {
                 var tr = document.createElement('tr');
 
-                // IP 链接
                 var ipTd = document.createElement('td');
                 var ipLink = document.createElement('a');
                 ipLink.href = '/asset/' + asset.ip;
@@ -130,7 +182,6 @@
                 ipTd.appendChild(ipLink);
                 tr.appendChild(ipTd);
 
-                // 状态
                 var statusTd = document.createElement('td');
                 var statusClass = 'unknown';
                 var statusText = '未知';
@@ -144,26 +195,23 @@
                 statusTd.innerHTML = '<span class="status-badge ' + statusClass + '"><span class="status-dot"></span> ' + statusText + '</span>';
                 tr.appendChild(statusTd);
 
-                // 其他字段
                 tr.innerHTML += '<td>' + (asset.hostname || '-') + '</td>';
                 tr.innerHTML += '<td>' + (asset.os_name || '-') + '</td>';
                 tr.innerHTML += '<td>' + (asset.vendor || '-') + '</td>';
 
-                // 端口
                 var portCount = asset.open_ports ? asset.open_ports.length : 0;
                 var portDisplay = '-';
                 if (portCount > 0) {
-                    portDisplay = asset.open_ports.map(function(p) {
+                    portDisplay = asset.open_ports.slice(0, 5).map(function(p) {
                         if (typeof p === 'object') return p.port + '/' + p.protocol;
                         return p;
                     }).join(', ');
+                    if (portCount > 5) portDisplay += '...';
                 }
                 tr.innerHTML += '<td>' + portDisplay + '</td>';
 
-                // 最后扫描时间
                 tr.innerHTML += '<td>' + formatDateTime(asset.last_scan_at) + '</td>';
 
-                // 操作列
                 var actionTd = document.createElement('td');
                 var deleteBtn = document.createElement('button');
                 deleteBtn.className = 'btn-delete';
@@ -174,6 +222,8 @@
 
                 tbody.appendChild(tr);
             });
+
+            renderPagination();
         })
         .catch(function(error) {
             console.error('加载资产失败:', error);
@@ -181,35 +231,67 @@
         });
     }
 
-    // 导出 CSV
+    function renderPagination() {
+        var totalPages = Math.ceil(totalAssets / pageSize);
+        var pagination = document.getElementById('pagination');
+
+        if (totalPages <= 1) {
+            pagination.classList.add('hidden');
+            return;
+        }
+        pagination.classList.remove('hidden');
+
+        var html = '';
+        html += '<button class="pagination-btn ' + (currentPage === 1 ? 'disabled' : '') + '" data-page="prev">上一页</button>';
+
+        var maxVisible = 5;
+        var startPage = Math.max(1, currentPage - 2);
+        var endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        if (endPage - startPage < maxVisible - 1) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            html += '<button class="pagination-btn ' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+
+        html += '<button class="pagination-btn ' + (currentPage === totalPages ? 'disabled' : '') + '" data-page="next">下一页</button>';
+        html += '<span class="pagination-info">第 ' + currentPage + '/' + totalPages + ' 页，共 ' + totalAssets + ' 条</span>';
+
+        pagination.innerHTML = html;
+
+        pagination.querySelectorAll('.pagination-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var page = this.dataset.page;
+                if (page === 'prev' && currentPage > 1) {
+                    currentPage--;
+                } else if (page === 'next' && currentPage < totalPages) {
+                    currentPage++;
+                } else if (page !== 'prev' && page !== 'next') {
+                    currentPage = parseInt(page);
+                }
+                loadAssets();
+            });
+        });
+    }
+
     function exportCSV() {
         window.location.href = "/api/assets/export";
     }
 
-    // 搜索框回车事件
     document.getElementById('search-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') loadAssets();
+        if (e.key === 'Enter') {
+            currentPage = 1;
+            loadAssets();
+        }
     });
 
-    // 页面加载时执行
+    document.getElementById('status-filter').addEventListener('change', function() {
+        currentPage = 1;
+        loadAssets();
+    });
+
     loadAssets();
     </script>
-
-    <style>
-    .btn-delete {
-        padding: 4px 12px;
-        border-radius: 6px;
-        background: transparent;
-        color: #ef4444;
-        border: 1px solid #ef4444;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 13px;
-    }
-    .btn-delete:hover {
-        background: #ef4444;
-        color: white;
-    }
-    </style>
 </body>
 </html>

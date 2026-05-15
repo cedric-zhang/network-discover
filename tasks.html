@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix1">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix2">
     <style>
         .task-tabs {
             display: flex;
@@ -20,6 +20,7 @@
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid var(--border-color);
+            font-size: 14px;
         }
         .task-tab.active {
             background: var(--accent-cyan);
@@ -36,7 +37,7 @@
             margin-bottom: 12px;
             border: 1px solid var(--border-color);
             display: grid;
-            grid-template-columns: 32px 80px 100px 1fr 120px 40px;
+            grid-template-columns: 32px 90px 90px 1fr 100px 40px;
             gap: 12px;
             align-items: center;
         }
@@ -45,28 +46,42 @@
             height: 18px;
             cursor: pointer;
             accent-color: var(--accent-cyan);
+            vertical-align: middle;
         }
         .task-id {
             font-size: 12px;
             color: var(--text-muted);
+            text-align: left;
         }
         .task-type {
             font-size: 13px;
             color: var(--text-secondary);
+            text-align: left;
+        }
+        .task-target-wrapper {
+            text-align: left;
+            min-width: 0;
         }
         .task-target {
             font-size: 14px;
             color: var(--text-primary);
             font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .task-name {
             font-size: 12px;
             color: var(--accent-cyan);
             margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .task-status {
             display: flex;
             align-items: center;
+            justify-content: flex-start;
             gap: 6px;
             font-size: 13px;
         }
@@ -83,6 +98,19 @@
             font-size: 12px;
             color: var(--text-muted);
             margin-top: 4px;
+        }
+        .delete-btn {
+            padding: 4px 8px;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .delete-btn:hover {
+            color: #ef4444;
         }
         .empty-state-task {
             text-align: center;
@@ -143,24 +171,48 @@
             background: #6b7280;
             cursor: not-allowed;
         }
-        .delete-btn {
-            padding: 4px 8px;
-            background: transparent;
-            color: var(--text-muted);
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s;
-        }
-        .delete-btn:hover {
-            color: #ef4444;
-        }
         .select-all-wrapper {
             display: flex;
             align-items: center;
             gap: 8px;
         }
         .selected-count {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 16px;
+        }
+        .pagination-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .pagination-btn:hover:not(.disabled) {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+        .pagination-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination-info {
             color: var(--text-secondary);
             font-size: 13px;
         }
@@ -203,16 +255,19 @@
             </div>
 
             <div id="task-list">加载中...</div>
+            <div class="pagination hidden" id="pagination"></div>
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix1"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix2"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
     var lastTasksJSON = '';
     var pollInterval = null;
     var selectedTasks = new Set();
+    var currentPage = 1;
+    var pageSize = 10;
 
     function loadTasks() {
         fetch('/api/scan/tasks')
@@ -223,10 +278,10 @@
                 return { id: t.task_id, status: t.status, target: t.target, name: t.name, time: t.created_at };
             }));
 
-            // 只在数据变化时重新渲染，防止闪烁
             if (newJSON !== lastTasksJSON) {
                 lastTasksJSON = newJSON;
                 allTasks = newTasks;
+                currentPage = 1;  // 数据变化时回到第一页
                 renderTasks();
                 updateCounts();
             }
@@ -238,28 +293,46 @@
         });
     }
 
+    function getFilteredTasks() {
+        if (currentFilter === 'all') {
+            return allTasks;
+        }
+        return allTasks.filter(function(t) {
+            // 排队中：queued 和 pending
+            if (currentFilter === 'queued') {
+                return t.status === 'queued' || t.status === 'pending';
+            }
+            // 运行中：running 和 scanning（不含 pending）
+            if (currentFilter === 'running') {
+                return t.status === 'running' || t.status === 'scanning';
+            }
+            return t.status === currentFilter;
+        });
+    }
+
     function renderTasks() {
-        var filtered = currentFilter === 'all'
-            ? allTasks
-            : allTasks.filter(function(t) {
-                // 运行中包括 running、scanning、pending
-                if (currentFilter === 'running') {
-                    return t.status === 'running' || t.status === 'scanning' || t.status === 'pending';
-                }
-                return t.status === currentFilter;
-            });
+        var filtered = getFilteredTasks();
+        var totalPages = Math.ceil(filtered.length / pageSize);
+        if (currentPage > totalPages && totalPages > 0) {
+            currentPage = totalPages;
+        }
+
+        var startIndex = (currentPage - 1) * pageSize;
+        var endIndex = startIndex + pageSize;
+        var pageTasks = filtered.slice(startIndex, endIndex);
 
         var container = document.getElementById('task-list');
 
         if (filtered.length === 0) {
             container.innerHTML = '<div class="empty-state-task">暂无扫描任务<br><br><a href="/scan.html">去创建一个 →</a></div>';
             document.getElementById('batch-actions').classList.add('hidden');
+            document.getElementById('pagination').classList.add('hidden');
             return;
         }
 
         document.getElementById('batch-actions').classList.remove('hidden');
 
-        container.innerHTML = filtered.map(function(task) {
+        container.innerHTML = pageTasks.map(function(task) {
             var statusInfo = getStatusInfo(task.status);
             var taskIdShort = task.task_id ? task.task_id.substring(0, 12) : 'N/A';
             var targetType = task.target.includes('/') ? '网段' : '单IP';
@@ -272,7 +345,7 @@
                 '<input type="checkbox" class="task-checkbox task-item-checkbox" data-task-id="' + task.task_id + '" ' + isChecked + '>' +
                 '<div class="task-id">#' + taskIdShort + '</div>' +
                 '<div class="task-type">' + targetType + '</div>' +
-                '<div><div class="task-target">' + displayName + '</div>' +
+                '<div class="task-target-wrapper"><div class="task-target">' + displayName + '</div>' +
                 nameDisplay +
                 '<div class="task-meta">' + timeStr + '</div></div>' +
                 '<div class="task-status"><span class="status-dot status-' + normalizeStatus(task.status) + '"></span>' +
@@ -281,14 +354,62 @@
             '</div>';
         }).join('');
 
-        // 绑定复选框事件
+        renderPagination(filtered.length, totalPages);
         bindCheckboxEvents();
-        // 绑定删除按钮事件
         bindDeleteEvents();
     }
 
+    function renderPagination(total, totalPages) {
+        var pagination = document.getElementById('pagination');
+        if (totalPages <= 1) {
+            pagination.classList.add('hidden');
+            return;
+        }
+        pagination.classList.remove('hidden');
+
+        var html = '';
+        // 上一页
+        html += '<button class="pagination-btn ' + (currentPage === 1 ? 'disabled' : '') + '" data-page="prev">上一页</button>';
+
+        // 页码
+        var maxVisible = 5;
+        var startPage = Math.max(1, currentPage - 2);
+        var endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        if (endPage - startPage < maxVisible - 1) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        for (var i = startPage; i <= endPage; i++) {
+            html += '<button class="pagination-btn ' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+
+        // 下一页
+        html += '<button class="pagination-btn ' + (currentPage === totalPages ? 'disabled' : '') + '" data-page="next">下一页</button>';
+
+        // 信息
+        html += '<span class="pagination-info">第 ' + currentPage + '/' + totalPages + ' 页，共 ' + total + ' 条</span>';
+
+        pagination.innerHTML = html;
+
+        // 绑定分页事件
+        pagination.querySelectorAll('.pagination-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var page = this.dataset.page;
+                if (page === 'prev' && currentPage > 1) {
+                    currentPage--;
+                } else if (page === 'next' && currentPage < totalPages) {
+                    currentPage++;
+                } else if (page !== 'prev' && page !== 'next') {
+                    currentPage = parseInt(page);
+                }
+                selectedTasks.clear();
+                updateSelectedCount();
+                renderTasks();
+            });
+        });
+    }
+
     function bindCheckboxEvents() {
-        // 单个复选框
         document.querySelectorAll('.task-item-checkbox').forEach(function(cb) {
             cb.addEventListener('change', function() {
                 var taskId = this.dataset.taskId;
@@ -301,11 +422,9 @@
             });
         });
 
-        // 全选复选框
         var selectAllCb = document.getElementById('select-all');
         selectAllCb.addEventListener('change', function() {
-            var checkboxes = document.querySelectorAll('.task-item-checkbox');
-            checkboxes.forEach(function(cb) {
+            document.querySelectorAll('.task-item-checkbox').forEach(function(cb) {
                 cb.checked = selectAllCb.checked;
                 var taskId = cb.dataset.taskId;
                 if (selectAllCb.checked) {
@@ -319,7 +438,6 @@
     }
 
     function bindDeleteEvents() {
-        // 单个删除按钮
         document.querySelectorAll('.delete-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var taskId = this.dataset.taskId;
@@ -329,7 +447,6 @@
             });
         });
 
-        // 批量删除按钮
         var batchDeleteBtn = document.getElementById('batch-delete-btn');
         batchDeleteBtn.addEventListener('click', function() {
             if (selectedTasks.size === 0) return;
@@ -344,9 +461,8 @@
         document.getElementById('selected-count').textContent = '已选择 ' + count + ' 个';
         document.getElementById('batch-delete-btn').disabled = count === 0;
 
-        // 更新全选框状态
         var checkboxes = document.querySelectorAll('.task-item-checkbox');
-        var allChecked = checkboxes.length > 0 && checkboxes.length === selectedTasks.size;
+        var allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(function(cb) { return cb.checked; });
         document.getElementById('select-all').checked = allChecked;
     }
 
@@ -382,9 +498,9 @@
         });
     }
 
-    // 状态标准化（用于 CSS 类名）
     function normalizeStatus(status) {
-        if (status === 'scanning' || status === 'pending') return 'running';
+        if (status === 'scanning') return 'running';
+        if (status === 'pending') return 'queued';
         return status;
     }
 
@@ -409,7 +525,9 @@
     function updateCounts() {
         var counts = { all: allTasks.length, queued: 0, running: 0, completed: 0, failed: 0 };
         allTasks.forEach(function(t) {
+            // queued 标签页包含 queued 和 pending
             if (t.status === 'queued' || t.status === 'pending') counts.queued++;
+            // running 标签页包含 running 和 scanning
             else if (t.status === 'running' || t.status === 'scanning') counts.running++;
             else if (t.status === 'completed') counts.completed++;
             else if (t.status === 'failed') counts.failed++;
@@ -430,19 +548,18 @@
         return map[filter] || filter;
     }
 
-    // Tab click handler
     document.querySelectorAll('.task-tab').forEach(function(tab) {
         tab.addEventListener('click', function() {
             document.querySelectorAll('.task-tab').forEach(function(t) { t.classList.remove('active'); });
             tab.classList.add('active');
             currentFilter = tab.dataset.filter;
+            currentPage = 1;  // 切换标签时回到第一页
             selectedTasks.clear();
             updateSelectedCount();
             renderTasks();
         });
     });
 
-    // Initial load and auto-refresh
     loadTasks();
     pollInterval = setInterval(loadTasks, 3000);
     </script>

@@ -1,11 +1,10 @@
 /*
  * 网络设备发现平台 - JavaScript入口文件
- * 版本: v0.9.9-fix1
+ * 版本: v0.9.9-fix2
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
 // ===== Toast 提示系统 (v0.9.9 CSS动画版) =====
-// 使用 CSS animation 控制消失，不依赖 setTimeout
 function showToast(message, type) {
     type = type || "info";
     console.log("[Toast] Creating:", message, type);
@@ -29,16 +28,13 @@ function showToast(message, type) {
     container.appendChild(toast);
     console.log("[Toast] Appended with CSS animation (3s fade)");
 
-    // 仅用于清理 DOM，动画结束后移除元素
     setTimeout(function cleanup() {
         toast.remove();
         if (container.children.length === 0) {
             container.style.display = "none";
         }
-    }, 3500); // 比 animation 久一点
+    }, 3500);
 }
-
-
 
 // ===== 按钮 Loading 状态 =====
 function setButtonLoading(btn, loading) {
@@ -61,80 +57,123 @@ var osChart = null;
 
 // 深色主题配色 - 状态颜色
 var chartColors = {
-    online: '#22c55e',     // 绿色 - 在线
-    offline: '#ef4444',    // 红色 - 离线
-    unknown: '#6b7280',    // 灰色 - 未知
-    primary: '#00d4ff',    // 青色 - 主色
-    secondary: '#8e44ad',  // 紫色
-    tertiary: '#f59e0b',   // 黄色
-    quaternary: '#1abc9c', // 青绿
-    quinary: '#3498db'     // 蓝色
+    online: '#22c55e',
+    offline: '#ef4444',
+    unknown: '#6b7280',
+    primary: '#00d4ff',
+    secondary: '#8e44ad',
+    tertiary: '#f59e0b',
+    quaternary: '#1abc9c',
+    quinary: '#3498db'
 };
 
-// 厂商颜色映射表 - 不同厂商用不同颜色
+// 厂商颜色映射表 - 扩展更多厂商
 var vendorColorMap = {
-    'Cisco': '#3b82f6',       // 蓝
-    'Huawei': '#ef4444',      // 红
-    'H3C': '#10b981',         // 绿
-    'Juniper': '#f59e0b',     // 黄
-    'Dell': '#8b5cf6',        // 紫
-    'HP': '#ec4899',          // 粉
-    'Lenovo': '#06b6d4',      // 青
-    'Intel': '#64748b',       // 灰蓝
-    'AMD': '#f97316',         // 橙
-    'Unknown': '#6b7280',     // 灰
-    '未知': '#6b7280',        // 灰
-    'unknown': '#6b7280'      // 灰
+    'Cisco': '#3b82f6',           // 蓝
+    'Huawei': '#ef4444',          // 红
+    'H3C': '#10b981',             // 绿
+    'Hangzhou H3C': '#10b981',    // 绿
+    'Juniper': '#f59e0b',         // 黄
+    'Dell': '#8b5cf6',            // 紫
+    'HP': '#ec4899',              // 粉
+    'Lenovo': '#06b6d4',          // 青
+    'Intel': '#64748b',           // 灰蓝
+    'AMD': '#f97316',             // 橙
+    'VMware': '#7c3aed',          // 深紫
+    'Ruijie Networks': '#14b8a6', // 青绿
+    'Ruijie': '#14b8a6',          // 青绿
+    'Broadcom': '#a855f7',        // 紫粉
+    'Broadcom Limited': '#a855f7', // 紫粉
+    'Wistron': '#84cc16',         // 黄绿
+    'Wistron Infocomm': '#84cc16', // 黄绿
+    'Apple': '#6b7280',           // 灰
+    'Samsung': '#0369a1',         // 深蓝
+    'Microsoft': '#059669',       // 深绿
+    'Google': '#dc2626',          // 深红
+    'Unknown': '#6b7280',         // 灰
+    '未知': '#6b7280',
+    'unknown': '#6b7280'
 };
 
-// OS颜色映射表 - 不同系统用不同颜色
+// OS颜色映射表 - 扩展更多系统
 var osColorMap = {
-    'Linux': '#10b981',       // 绿
-    'Ubuntu': '#10b981',      // 绿
-    'CentOS': '#10b981',      // 绿
-    'RedHat': '#ef4444',      // 红
-    'Debian': '#10b981',      // 绿
-    'Windows': '#3b82f6',     // 蓝
-    'Windows Server': '#3b82f6', // 蓝
-    'macOS': '#8b5cf6',       // 紫
-    'Darwin': '#8b5cf6',      // 紫
-    'FreeBSD': '#06b6d4',     // 青
-    'Android': '#22c55e',     // 绿
-    'iOS': '#8b5cf6',         // 紫
-    'Unknown': '#6b7280',     // 灰
-    '未知': '#6b7280',        // 灰
-    'unknown': '#6b7280'      // 灰
+    'Linux': '#10b981',           // 绿
+    'Ubuntu': '#22c55e',          // 亮绿
+    'CentOS': '#ef4444',          // 红
+    'RedHat': '#dc2626',          // 深红
+    'Debian': '#14b8a6',          // 青绿
+    'Fedora': '#3b82f6',          // 蓝
+    'Windows': '#3b82f6',         // 蓝
+    'Windows Server': '#2563eb',  // 深蓝
+    'macOS': '#8b5cf6',           // 紫
+    'Darwin': '#a855f7',          // 紫粉
+    'FreeBSD': '#06b6d4',         // 青
+    'OpenBSD': '#0891b2',         // 深青
+    'Android': '#22c55e',         // 绿
+    'iOS': '#8b5cf6',             // 紫
+    'ESXi': '#7c3aed',            // 深紫
+    'VMware ESX': '#7c3aed',      // 深紫
+    'Unknown': '#6b7280',         // 灰
+    '未知': '#6b7280',
+    'unknown': '#6b7280'
 };
 
-// 默认颜色序列（用于未知厂商/OS）
-var defaultColorSequence = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
+// 扩展颜色序列 - 20种独特颜色，确保不重复
+var extendedColorSequence = [
+    '#3b82f6',  // 蓝
+    '#ef4444',  // 红
+    '#10b981',  // 绿
+    '#f59e0b',  // 黄
+    '#8b5cf6',  // 紫
+    '#06b6d4',  // 青
+    '#ec4899',  // 粉
+    '#f97316',  // 橙
+    '#14b8a6',  // 青绿
+    '#a855f7',  // 紫粉
+    '#7c3aed',  // 深紫
+    '#84cc16',  // 黄绿
+    '#0ea5e9',  // 天蓝
+    '#d946ef',  // 亮紫
+    '#64748b',  // 灰蓝
+    '#22c55e',  // 亮绿
+    '#dc2626',  // 深红
+    '#059669',  // 深绿
+    '#2563eb',  // 深蓝
+    '#0891b2'   // 深青
+];
 
-// 根据名称获取颜色（厂商或OS）
-function getColorForLabel(label, colorMap) {
+// 用于跟踪已分配颜色的厂商/OS
+var assignedColors = {};
+
+// 根据名称获取颜色（厂商或OS）- 确保每个类别独立颜色
+function getColorForLabel(label, colorMap, colorSequence, index) {
+    // 未知/unknown统一使用灰色
+    if (label.toLowerCase().includes('unknown') || label.toLowerCase().includes('未知') || label.trim() === '') {
+        return '#6b7280';
+    }
+
     // 直接匹配
     if (colorMap[label]) {
         return colorMap[label];
     }
-    // 部分匹配（如 "Linux 5.4" 匹配 Linux）
+
+    // 部分匹配（如 "Linux 5.4" 匹配 Linux，"Hangzhou H3C" 匹配 H3C）
     for (var key in colorMap) {
-        if (label.toLowerCase().includes(key.toLowerCase())) {
+        if (label.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(label.toLowerCase())) {
             return colorMap[key];
         }
     }
-    // 未知/unknown匹配
-    if (label.toLowerCase().includes('unknown') || label.toLowerCase().includes('未知')) {
-        return '#6b7280';
-    }
-    // 返回默认序列中的颜色（按索引轮换）
-    var index = Object.keys(colorMap).length % defaultColorSequence.length;
-    return defaultColorSequence[index];
+
+    // 新发现的厂商/OS - 使用扩展颜色序列，按索引分配唯一颜色
+    // 确保 "未知" 不占用颜色序列的位置
+    var colorIndex = index % colorSequence.length;
+    return colorSequence[colorIndex];
 }
 
 // ===== 统一初始化函数 =====
 async function initApp() {
     console.log("Network Discovery Platform UI initializing...");
 
-    // 1. 加载版本号
     var versionEl = document.getElementById('app-version');
     if (versionEl) {
         try {
@@ -148,10 +187,8 @@ async function initApp() {
         }
     }
 
-    // 2. 加载仪表盘统计数据
     await loadDashboardStats();
 
-    // 3. 启动扫描进度跟踪（如果扫描页面）
     if (window.location.pathname.includes('scan')) {
         startScanProgressTracking();
     }
@@ -169,7 +206,6 @@ async function loadDashboardStats() {
         var data = await response.json();
         var total = data.total || 0;
 
-        // 计算在线/离线/未知
         var online = 0, offline = 0, unknown = 0;
         var vendorStats = {};
         var osStats = {};
@@ -179,12 +215,10 @@ async function loadDashboardStats() {
             else if (asset.status === 'down' || asset.status === 'offline') offline++;
             else unknown++;
 
-            // 统计厂商
             var vendorKey = asset.vendor || '未知';
             if (vendorKey.trim() === '') vendorKey = '未知';
             vendorStats[vendorKey] = (vendorStats[vendorKey] || 0) + 1;
 
-            // 统计OS
             var osKey = asset.os_name || '未知';
             if (osKey.trim() === '') osKey = '未知';
             osStats[osKey] = (osStats[osKey] || 0) + 1;
@@ -199,7 +233,6 @@ async function loadDashboardStats() {
 
         updateCharts(online, offline, unknown, vendorStats, osStats);
 
-        // 加载最近扫描记录
         await loadRecentScans();
 
     } catch (e) {
@@ -223,7 +256,6 @@ async function loadRecentScans() {
             return;
         }
 
-        // 取最近5条，按时间倒序
         var recent = tasks.slice(0, 5);
 
         var html = recent.map(function(task) {
@@ -311,7 +343,7 @@ function updateCharts(online, offline, unknown, vendorStats, osStats) {
         }
     });
 
-    // 2. 厂商分布图（柱状图）- 使用厂商颜色映射
+    // 2. 厂商分布图（柱状图）- 每个厂商独立颜色
     var vendorCtx = vendorCanvas.getContext('2d');
     if (vendorChart) {
         vendorChart.destroy();
@@ -319,13 +351,14 @@ function updateCharts(online, offline, unknown, vendorStats, osStats) {
 
     var sortedVendors = Object.entries(vendorStats)
         .sort(function(a, b) { return b[1] - a[1]; })
-        .slice(0, 6);
+        .slice(0, 10);
 
     var vendorLabels = sortedVendors.map(function(item) { return item[0]; });
     var vendorData = sortedVendors.map(function(item) { return item[1]; });
-    // 根据厂商名称分配颜色
-    var vendorColors = vendorLabels.map(function(label) {
-        return getColorForLabel(label, vendorColorMap);
+
+    // 每个厂商分配独立颜色，使用索引确保不重复
+    var vendorColors = vendorLabels.map(function(label, index) {
+        return getColorForLabel(label, vendorColorMap, extendedColorSequence, index);
     });
 
     vendorChart = new Chart(vendorCtx, {
@@ -376,13 +409,14 @@ function updateCharts(online, offline, unknown, vendorStats, osStats) {
 
         var sortedOS = Object.entries(osStats)
             .sort(function(a, b) { return b[1] - a[1]; })
-            .slice(0, 6);
+            .slice(0, 10);
 
         var osLabels = sortedOS.map(function(item) { return item[0]; });
         var osData = sortedOS.map(function(item) { return item[1]; });
-        // 根据OS名称分配颜色
-        var osColors = osLabels.map(function(label) {
-            return getColorForLabel(label, osColorMap);
+
+        // 每个OS分配独立颜色
+        var osColors = osLabels.map(function(label, index) {
+            return getColorForLabel(label, osColorMap, extendedColorSequence, index);
         });
 
         osChart = new Chart(osCtx, {
@@ -424,7 +458,7 @@ function updateCharts(online, offline, unknown, vendorStats, osStats) {
         });
     }
 
-    console.log('Charts updated with vendor/OS color mapping');
+    console.log('Charts updated - each vendor/OS has unique color');
 }
 
 function showChartFallback() {
