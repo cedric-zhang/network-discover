@@ -168,3 +168,15 @@ def get_asset(ip: str, db: Session = Depends(get_db)):
         last_scan_at=asset.last_scan_at.isoformat() if asset.last_scan_at else None,
         created_at=asset.created_at.isoformat() if asset.created_at else None
     )
+
+
+@router.delete("/assets/{ip}")
+def delete_asset(ip: str, db: Session = Depends(get_db)):
+    """删除指定资产"""
+    asset = db.query(IPAsset).filter(IPAsset.ip == ip).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="资产不存在")
+    db.delete(asset)
+    db.commit()
+    return {"message": "已删除", "ip": ip}
+

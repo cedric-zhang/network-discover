@@ -14,7 +14,7 @@
             <a href="/index.html">仪表盘</a>
             <a href="/scan.html">扫描</a>
             <a href="/assets.html" class="active">资产</a>
-            <a href="/schedules.html">计划</a>
+            <a href="/tasks.html">扫描任务</a>
         </div>
     </nav>
 
@@ -36,7 +36,8 @@
                         <option value="unknown">未知</option>
                     </select>
                 </div>
-                <button class="filter-btn" onclick="loadAssets()">搜索</button> <button class="btn-secondary" onclick="exportCSV()">导出 CSV</button>
+                <button class="filter-btn" onclick="loadAssets()">搜索</button>
+                <button class="btn-secondary" onclick="exportCSV()">导出 CSV</button>
             </div>
 
             <!-- 表格 -->
@@ -51,117 +52,164 @@
                             <th>厂商</th>
                             <th>开放端口</th>
                             <th>最后扫描时间</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="assets-table">
-                        <tr><td colspan="7" class="loading">加载中...</td></tr>
+                        <tr><td colspan="8" class="loading">加载中...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <script>
-        // 加载资产列表
-        async function loadAssets() {
-            const searchInput = document.getElementById('search-input').value;
-            const statusFilter = document.getElementById('status-filter').value;
-            
-            let url = '/api/assets/?page=1&page_size=50';
-            if (searchInput) url += '&search=' + encodeURIComponent(searchInput);
-            if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
-            
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                // 更新计数
-                document.getElementById('asset-count').textContent = '已发现 ' + data.total + ' 个资产';
-                
-                // 更新表格
-                const tbody = document.getElementById('assets-table');
-                if (data.assets.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无发现资产，执行扫描后将自动显示</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = '';
-                data.assets.forEach(asset => {
-                    const tr = document.createElement('tr');
-                    
-                    // IP 链接
-                    const ipTd = document.createElement('td');
-                    const ipLink = document.createElement('a');
-                    ipLink.href = '/asset/' + asset.ip;
-                    ipLink.textContent = asset.ip;
-                    ipLink.style.color = 'var(--accent-cyan)';
-                    ipLink.style.textDecoration = 'none';
-                    ipTd.appendChild(ipLink);
-                    tr.appendChild(ipTd);
-                    
-                    // 状态
-                    const statusTd = document.createElement('td');
-                    let statusClass = 'unknown';
-                    let statusText = '未知';
-                    if (asset.status === 'up' || asset.status === 'online') {
-                        statusClass = 'online';
-                        statusText = '在线';
-                    } else if (asset.status === 'down' || asset.status === 'offline') {
-                        statusClass = 'offline';
-                        statusText = '离线';
-                    }
-                    statusTd.innerHTML = '<span class="status-badge ' + statusClass + '"><span class="status-dot"></span> ' + statusText + '</span>';
-                    tr.appendChild(statusTd);
-                    
-                    // 其他字段
-                    tr.innerHTML += '<td>' + (asset.hostname || '-') + '</td>';
-                    tr.innerHTML += '<td>' + (asset.os_name || '-') + '</td>';
-                    tr.innerHTML += '<td>' + (asset.vendor || '-') + '</td>';
-                    
-                    // 端口数量
-                    const portCount = asset.open_ports ? asset.open_ports.length : 0;
-                    // Handle both new format (object) and old format (string)
-                    const portDisplay = portCount > 0 ? asset.open_ports.map(p => {
-                        if (typeof p === 'object') return p.port + '/' + p.protocol;
-                        return p; // old format "22/tcp" string
-                    }).join(', ') : '-';
-                    tr.innerHTML += '<td>' + portDisplay + '</td>';
-                    
-                    // 最后扫描时间
-                    tr.innerHTML += '<td>' + formatDateTime(asset.last_scan_at) + '</td>';
-                    
-                    tbody.appendChild(tr);
-                });
-                
-            } catch (error) {
-                console.error('加载资产失败:', error);
-                document.getElementById('assets-table').innerHTML = '<tr><td colspan="7" class="empty-state">加载失败</td></tr>';
-            }
-        }
-
-        // 格式化日期时间
-        function formatDateTime(dateStr) {
-            if (!dateStr) return '-';
-            const date = new Date(dateStr);
-            return date.toLocaleString('zh-CN');
-        }
-
-        // 页面加载时执行
-        loadAssets();
-n        // 导出 CSV
-        function exportCSV() {
-            window.location.href = "/api/assets/export";
-        }
-        
-        // 搜索框回车事件
-        document.getElementById('search-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') loadAssets();
-n        // 导出 CSV
-        function exportCSV() {
-            window.location.href = "/api/assets/export";
-        }
-        });
-    </script>
     <script src="/static/js/app.js"></script>
+    <script>
+    // 格式化日期时间
+    function formatDateTime(dateStr) {
+        if (!dateStr) return '-';
+        var date = new Date(dateStr);
+        return date.toLocaleString('zh-CN');
+    }
+
+    // 删除资产
+    function deleteAsset(ip) {
+        if (!confirm('确认删除设备 ' + ip + ' 吗？\n此操作将永久移除该资产记录。')) {
+            return;
+        }
+
+        fetch('/api/assets/' + ip, {
+            method: 'DELETE'
+        })
+        .then(function(res) {
+            if (res.ok) {
+                showToast('已删除 ' + ip, 'success');
+                loadAssets();
+            } else if (res.status === 404) {
+                showToast('资产不存在', 'error');
+            } else {
+                showToast('删除失败', 'error');
+            }
+        })
+        .catch(function(err) {
+            showToast('删除失败: 网络错误', 'error');
+        });
+    }
+
+    // 加载资产列表
+    function loadAssets() {
+        var searchInput = document.getElementById('search-input').value;
+        var statusFilter = document.getElementById('status-filter').value;
+
+        var url = '/api/assets/?page=1&page_size=50';
+        if (searchInput) url += '&search=' + encodeURIComponent(searchInput);
+        if (statusFilter) url += '&status=' + encodeURIComponent(statusFilter);
+
+        fetch(url)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            document.getElementById('asset-count').textContent = '已发现 ' + data.total + ' 个资产';
+
+            var tbody = document.getElementById('assets-table');
+            if (data.assets.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无发现资产，执行扫描后将自动显示</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.assets.forEach(function(asset) {
+                var tr = document.createElement('tr');
+
+                // IP 链接
+                var ipTd = document.createElement('td');
+                var ipLink = document.createElement('a');
+                ipLink.href = '/asset/' + asset.ip;
+                ipLink.textContent = asset.ip;
+                ipLink.style.color = 'var(--accent-cyan)';
+                ipLink.style.textDecoration = 'none';
+                ipTd.appendChild(ipLink);
+                tr.appendChild(ipTd);
+
+                // 状态
+                var statusTd = document.createElement('td');
+                var statusClass = 'unknown';
+                var statusText = '未知';
+                if (asset.status === 'up' || asset.status === 'online') {
+                    statusClass = 'online';
+                    statusText = '在线';
+                } else if (asset.status === 'down' || asset.status === 'offline') {
+                    statusClass = 'offline';
+                    statusText = '离线';
+                }
+                statusTd.innerHTML = '<span class="status-badge ' + statusClass + '"><span class="status-dot"></span> ' + statusText + '</span>';
+                tr.appendChild(statusTd);
+
+                // 其他字段
+                tr.innerHTML += '<td>' + (asset.hostname || '-') + '</td>';
+                tr.innerHTML += '<td>' + (asset.os_name || '-') + '</td>';
+                tr.innerHTML += '<td>' + (asset.vendor || '-') + '</td>';
+
+                // 端口
+                var portCount = asset.open_ports ? asset.open_ports.length : 0;
+                var portDisplay = '-';
+                if (portCount > 0) {
+                    portDisplay = asset.open_ports.map(function(p) {
+                        if (typeof p === 'object') return p.port + '/' + p.protocol;
+                        return p;
+                    }).join(', ');
+                }
+                tr.innerHTML += '<td>' + portDisplay + '</td>';
+
+                // 最后扫描时间
+                tr.innerHTML += '<td>' + formatDateTime(asset.last_scan_at) + '</td>';
+
+                // 操作列
+                var actionTd = document.createElement('td');
+                var deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn-delete';
+                deleteBtn.textContent = '删除';
+                deleteBtn.onclick = function() { deleteAsset(asset.ip); };
+                actionTd.appendChild(deleteBtn);
+                tr.appendChild(actionTd);
+
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(function(error) {
+            console.error('加载资产失败:', error);
+            document.getElementById('assets-table').innerHTML = '<tr><td colspan="8" class="empty-state">加载失败</td></tr>';
+        });
+    }
+
+    // 导出 CSV
+    function exportCSV() {
+        window.location.href = "/api/assets/export";
+    }
+
+    // 搜索框回车事件
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') loadAssets();
+    });
+
+    // 页面加载时执行
+    loadAssets();
+    </script>
+
+    <style>
+    .btn-delete {
+        padding: 4px 12px;
+        border-radius: 6px;
+        background: transparent;
+        color: #ef4444;
+        border: 1px solid #ef4444;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 13px;
+    }
+    .btn-delete:hover {
+        background: #ef4444;
+        color: white;
+    }
+    </style>
 </body>
 </html>

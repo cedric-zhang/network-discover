@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络设备发现平台 - 扫描任务</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .task-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .task-tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border-color);
+        }
+        .task-tab.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+        .task-tab:hover:not(.active) {
+            background: var(--bg-card-hover);
+        }
+        .task-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 80px 100px 1fr 120px;
+            gap: 16px;
+            align-items: center;
+        }
+        .task-id {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .task-type {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .task-target {
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .task-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-queued { background: #f59e0b; }
+        .status-running { background: #3b82f6; animation: pulse 1.5s infinite; }
+        .status-completed { background: #22c55e; }
+        .status-failed { background: #ef4444; }
+        .task-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .empty-state-task {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state-task a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand">网络设备发现平台 <span id="app-version"></span></div>
+        <div class="links">
+            <a href="/index.html">仪表盘</a>
+            <a href="/scan.html">扫描</a>
+            <a href="/assets.html">资产</a>
+            <a href="/tasks.html" class="active">扫描任务</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-content">
+            <div class="page-title">扫描任务</div>
+            <div class="page-subtitle" id="task-count">加载中...</div>
+
+            <div class="task-tabs">
+                <div class="task-tab active" data-filter="all">全部</div>
+                <div class="task-tab" data-filter="queued">排队中</div>
+                <div class="task-tab" data-filter="running">运行中</div>
+                <div class="task-tab" data-filter="completed">已完成</div>
+                <div class="task-tab" data-filter="failed">失败</div>
+            </div>
+
+            <div id="task-list">加载中...</div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+    var currentFilter = 'all';
+    var allTasks = [];
+    var pollInterval = null;
+
+    function loadTasks() {
+        fetch('/api/scan/tasks')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            allTasks = data.tasks || [];
+            renderTasks();
+            updateCounts();
+        })
+        .catch(function(err) {
+            console.error('加载任务失败:', err);
+            document.getElementById('task-list').innerHTML =
+                '<div class="empty-state-task">加载失败，请刷新页面</div>';
+        });
+    }
+
+    function renderTasks() {
+        var filtered = currentFilter === 'all'
+            ? allTasks
+            : allTasks.filter(function(t) { return t.status === currentFilter; });
+
+        var container = document.getElementById('task-list');
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state-task">暂无扫描任务<br><br><a href="/scan.html">去创建一个 →</a></div>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(function(task) {
+            var statusInfo = getStatusInfo(task.status);
+            var taskIdShort = task.task_id ? task.task_id.substring(0, 12) : 'N/A';
+            var targetType = task.target.includes('/') ? '网段' : '单IP';
+            var timeStr = formatTime(task.created_at);
+
+            return '<div class="task-card">' +
+                '<div class="task-id">#' + taskIdShort + '</div>' +
+                '<div class="task-type">' + targetType + '</div>' +
+                '<div><div class="task-target">' + task.target + '</div>' +
+                '<div class="task-meta">' + timeStr + '</div></div>' +
+                '<div class="task-status"><span class="status-dot status-' + task.status + '"></span>' +
+                statusInfo.text + '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function getStatusInfo(status) {
+        var map = {
+            'queued': { text: '排队中', color: '#f59e0b' },
+            'running': { text: '运行中', color: '#3b82f6' },
+            'scanning': { text: '运行中', color: '#3b82f6' },
+            'completed': { text: '已完成', color: '#22c55e' },
+            'failed': { text: '失败', color: '#ef4444' }
+        };
+        return map[status] || { text: status, color: '#6b7280' };
+    }
+
+    function formatTime(dateStr) {
+        if (!dateStr) return '-';
+        var d = new Date(dateStr);
+        return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateCounts() {
+        var counts = { all: allTasks.length, queued: 0, running: 0, completed: 0, failed: 0 };
+        allTasks.forEach(function(t) {
+            if (t.status === 'queued') counts.queued++;
+            else if (t.status === 'running' || t.status === 'scanning') counts.running++;
+            else if (t.status === 'completed') counts.completed++;
+            else if (t.status === 'failed') counts.failed++;
+        });
+
+        document.getElementById('task-count').textContent = '共 ' + counts.all + ' 个扫描任务';
+
+        document.querySelectorAll('.task-tab').forEach(function(tab) {
+            var filter = tab.dataset.filter;
+            var count = counts[filter];
+            tab.textContent = tab.dataset.filter === 'all' ? '全部(' + count + ')' :
+                getTabText(filter) + '(' + count + ')';
+        });
+    }
+
+    function getTabText(filter) {
+        var map = { queued: '排队中', running: '运行中', completed: '已完成', failed: '失败' };
+        return map[filter] || filter;
+    }
+
+    // Tab click handler
+    document.querySelectorAll('.task-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.task-tab').forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            currentFilter = tab.dataset.filter;
+            renderTasks();
+        });
+    });
+
+    // Initial load and auto-refresh
+    loadTasks();
+    pollInterval = setInterval(loadTasks, 3000);
+    </script>
+</body>
+</html>
