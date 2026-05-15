@@ -44,9 +44,13 @@ function showToast(message, type) {
     container.appendChild(toast);
     console.log('[Toast] Toast appended, container children:', container.children.length);
 
-    // 3秒后移除
+    // 明确设置延迟参数
+    var removeDelay = 3000;
+    var fadeDelay = 300;
+    console.log('[Toast] Setting timeout with delay:', removeDelay, 'ms');
+
     setTimeout(function() {
-        console.log('[Toast] Removing toast');
+        console.log('[Toast] Timeout fired after', removeDelay, 'ms - Removing toast');
         toast.style.opacity = '0';
         toast.style.transition = 'opacity 0.3s ease';
         setTimeout(function() {
@@ -55,8 +59,9 @@ function showToast(message, type) {
                 container.style.display = 'none';
             }
             console.log('[Toast] Toast removed');
-        }, 300);
-    }, 3000);
+        }, fadeDelay);
+    }, removeDelay);
+    console.log('[Toast] setTimeout scheduled, should fire in', removeDelay, 'ms');
 }
 
 // ===== 按钮 Loading 状态 =====
