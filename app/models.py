@@ -46,20 +46,27 @@ class ScanSubmitRequest(BaseModel):
         if not v:
             raise ValueError("Target cannot be empty")
 
-        # 检查是否为有效的IP地址或CIDR范围
-        try:
-            # 尝试解析为IP地址
-            ipaddress.IPv4Address(v)
-        except ValueError:
+        # 检查是否类似IP地址格式 (数字.数字.数字.数字 或 数字.数字.数字.数字/数字)
+        # 如果是IP格式，必须通过ipaddress验证，不能当作域名
+        ip_pattern = r'^\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?$'
+        if re.match(ip_pattern, v):
             try:
-                # 尝试解析为CIDR范围
-                ipaddress.IPv4Network(v, strict=False)
-            except ValueError:
-                # 不是有效的IP地址或CIDR，可以是域名
-                if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9])*$", v):
-                    raise ValueError(f"Invalid target: {v}. Must be a valid IP, CIDR range, or hostname")
+                # 必须是有效的IP地址或CIDR
+                if '/' in v:
+                    ipaddress.IPv4Network(v, strict=False)
+                else:
+                    ipaddress.IPv4Address(v)
+                return v  # 有效IP/CIDR
+            except ValueError as e:
+                raise ValueError(f"Invalid IP address format: {v}. {str(e)}")
 
-        return v
+        # 不是IP格式，检查是否为有效域名
+        hostname_pattern = r'^[a-zA-Z][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](\.[a-zA-Z][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$'
+        if re.match(hostname_pattern, v):
+            return v  # 有效域名
+
+        # 既不是有效IP也不是有效域名
+        raise ValueError(f"Invalid target: {v}. Must be a valid IP, CIDR range, or hostname")
 
 
 class ScanTaskResponse(BaseModel):
@@ -83,7 +90,7 @@ class ScanResultResponse(BaseModel):
 
 # SQLAlchemy Models (for Database)
 class IPAsset(Base):
-    __tablename__ = "ip_assets"
+    __tablename__ = "ip_assets" 
 
     ip = Column(String, primary_key=True)
     status = Column(String, default="unknown")  # online / offline / unknown
@@ -97,7 +104,7 @@ class IPAsset(Base):
 
 
 class Schedule(Base):
-    __tablename__ = "schedules"
+    __tablename__ = "schedules" 
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
@@ -109,7 +116,7 @@ class Schedule(Base):
 
 
 class ScanTask(Base):
-    __tablename__ = "scan_tasks"
+    __tablename__ = "scan_tasks" 
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String, unique=True, index=True)
