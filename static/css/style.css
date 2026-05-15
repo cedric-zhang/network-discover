@@ -818,9 +818,6 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 8px;
-  opacity: 0;
-  transform: translateX(100%);
-  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .toast-show {
