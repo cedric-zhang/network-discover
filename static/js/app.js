@@ -4,44 +4,54 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.7 fix2) =====
+// ===== Toast 提示系统 (v0.9.7 fix4) =====
 // 必须在文件开头定义，确保全局可用
 function showToast(message, type) {
+    console.log('[Toast] Called with:', message, type);
     type = type || 'info';
+
+    // 获取或创建容器
     var container = document.getElementById('toast-container');
     if (!container) {
+        console.log('[Toast] Creating new container');
         container = document.createElement('div');
         container.id = 'toast-container';
-        container.className = 'toast-container';
-        // 直接设置样式确保不被覆盖
-        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px;';
         document.body.appendChild(container);
     }
-    // 确保容器可见
-    container.style.display = 'flex';
 
+    // 直接设置容器样式（不依赖 CSS）
+    container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none;';
+    console.log('[Toast] Container style set');
+
+    // 创建 toast 元素
     var toast = document.createElement('div');
-    toast.className = 'toast toast-' + type;
+
+    // 根据类型设置背景色
+    var bgColor = '#3b82f6'; // info 默认蓝色
+    if (type === 'success') bgColor = '#10b981';
+    else if (type === 'error') bgColor = '#ef4444';
+    else if (type === 'warning') bgColor = '#f59e0b';
+
+    // 直接设置 toast 样式（不依赖 CSS 类）
+    toast.style.cssText = 'padding: 12px 20px; border-radius: 12px; font-size: 14px; color: #fff; background: ' + bgColor + '; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 8px; pointer-events: auto; opacity: 1;';
 
     var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
     toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
 
     container.appendChild(toast);
+    console.log('[Toast] Toast appended, container children:', container.children.length);
 
-    // 强制重绘，确保动画生效
-    toast.offsetHeight;
-    toast.classList.add('toast-show');
-
-    // 3秒后淡出移除
+    // 3秒后移除
     setTimeout(function() {
-        toast.classList.remove('toast-show');
-        toast.classList.add('toast-hide');
+        console.log('[Toast] Removing toast');
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
         setTimeout(function() {
             toast.remove();
-            // 容器为空时隐藏，但不删除
             if (container.children.length === 0) {
                 container.style.display = 'none';
             }
+            console.log('[Toast] Toast removed');
         }, 300);
     }, 3000);
 }
