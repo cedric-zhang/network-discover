@@ -815,24 +815,27 @@ tbody tr:last-child td {
   font-size: 14px;
   color: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
   display: flex;
   align-items: center;
   gap: 8px;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast-show {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .toast-success { background: #10b981; }
 .toast-error { background: #ef4444; }
 .toast-warning { background: #f59e0b; }
+.toast-info { background: #3b82f6; }
 
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+.toast-hide {
+  opacity: 0;
+  transform: translateX(100%);
 }
 
 /* === 按钮 Loading 状态 === */

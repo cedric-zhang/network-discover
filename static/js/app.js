@@ -4,28 +4,45 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.4) =====
+// ===== Toast 提示系统 (v0.9.7 fix2) =====
 // 必须在文件开头定义，确保全局可用
 function showToast(message, type) {
+    type = type || 'info';
     var container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
         container.className = 'toast-container';
+        // 直接设置样式确保不被覆盖
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px;';
         document.body.appendChild(container);
     }
+    // 确保容器可见
+    container.style.display = 'flex';
 
     var toast = document.createElement('div');
     toast.className = 'toast toast-' + type;
 
-    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+    var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
     toast.innerHTML = '<span>' + icon + '</span><span>' + message + '</span>';
 
     container.appendChild(toast);
 
+    // 强制重绘，确保动画生效
+    toast.offsetHeight;
+    toast.classList.add('toast-show');
+
+    // 3秒后淡出移除
     setTimeout(function() {
-        toast.remove();
-        if (container.children.length === 0) container.remove();
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hide');
+        setTimeout(function() {
+            toast.remove();
+            // 容器为空时隐藏，但不删除
+            if (container.children.length === 0) {
+                container.style.display = 'none';
+            }
+        }, 300);
     }, 3000);
 }
 
