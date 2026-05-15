@@ -4,11 +4,11 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.7 debug版) =====
+// ===== Toast 提示系统 (v0.9.8 CSS动画版) =====
+// 使用 CSS animation 控制消失，不依赖 setTimeout
 function showToast(message, type) {
     type = type || "info";
-    var createTime = Date.now();
-    console.log("[Toast] Created at " + createTime + "ms:", message, type);
+    console.log("[Toast] Creating:", message, type);
 
     var container = document.getElementById("toast-container");
     if (!container) {
@@ -22,38 +22,22 @@ function showToast(message, type) {
     var icon = type === "success" ? "✅" : type === "error" ? "❌" : type === "warning" ? "⚠️" : "ℹ️";
 
     var toast = document.createElement("div");
-    toast.className = "toast toast-" + type;
-    toast.id = "toast-" + createTime;
+    toast.className = "toast toast-" + type + " toast-auto-fade";
     toast.style.cssText = "padding:12px 20px;border-radius:12px;font-size:14px;color:#fff;background:" + bgColor + ";box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;z-index:10000;opacity:1;";
     toast.innerHTML = "<span>" + icon + "</span><span>" + message + "</span>";
 
     container.appendChild(toast);
-    console.log("[Toast] Appended. Will remove in 3000ms");
+    console.log("[Toast] Appended with CSS animation (3s fade)");
 
-    var timerId = setTimeout(function fadeOut() {
-        var fireTime = Date.now();
-        var elapsed = fireTime - createTime;
-        console.log("[Toast] Timeout fired! Elapsed: " + elapsed + "ms (expected 3000ms)");
-        console.trace("[Toast] Who called this?");
-
-        if (elapsed < 2900) {
-            console.error("[Toast] WARNING: Timeout fired too early! Expected 3000ms, got " + elapsed + "ms");
+    // 仅用于清理 DOM，动画结束后移除元素
+    setTimeout(function cleanup() {
+        toast.remove();
+        if (container.children.length === 0) {
+            container.style.display = "none";
         }
-
-        toast.style.opacity = "0";
-        toast.style.transition = "opacity 0.3s";
-        setTimeout(function remove() {
-            console.log("[Toast] Removing after fade");
-            toast.remove();
-            if (container.children.length === 0) {
-                container.style.display = "none";
-            }
-        }, 300);
-    }, 3000);
-
-    console.log("[Toast] Timer ID: " + timerId + ". Toast ID: " + toast.id);
-    return toast;
+    }, 3500); // 比 animation 久一点
 }
+
 
 
 // ===== 按钮 Loading 状态 =====

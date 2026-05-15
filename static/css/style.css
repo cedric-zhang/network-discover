@@ -831,6 +831,16 @@ tbody tr:last-child td {
 .toast-warning { background: #f59e0b; }
 .toast-info { background: #3b82f6; }
 
+
+/* Toast 自动消失动画 - 不依赖 setTimeout */
+.toast-auto-fade {
+  animation: toastFadeOut 0.3s ease 2.7s forwards;
+}
+
+@keyframes toastFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 .toast-hide {
   opacity: 0;
   transform: translateX(100%);
