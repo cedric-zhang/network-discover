@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix4">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix5">
     <style>
         .task-tabs {
             display: flex;
@@ -216,6 +216,87 @@
             color: var(--text-secondary);
             font-size: 13px;
         }
+
+        /* 确认弹窗样式 */
+        .confirm-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .confirm-overlay.show {
+            opacity: 1;
+        }
+        .confirm-dialog {
+            background: #1e2d3d;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+        .confirm-overlay.show .confirm-dialog {
+            transform: scale(1);
+        }
+        .confirm-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+        }
+        .confirm-message {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .confirm-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        .confirm-btn-cancel {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .confirm-btn-cancel:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+        .confirm-btn-delete {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: #ef4444;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .confirm-btn-delete:hover {
+            background: #dc2626;
+        }
+        .confirm-btn-delete:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -228,6 +309,19 @@
             <a href="/tasks.html" class="active">扫描任务</a>
         </div>
     </nav>
+
+    
+    <!-- 确认弹窗 -->
+    <div class="confirm-overlay" id="confirm-overlay">
+        <div class="confirm-dialog">
+            <div class="confirm-title" id="confirm-title">确认删除</div>
+            <div class="confirm-message" id="confirm-message"></div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn-cancel" id="confirm-cancel">取消</button>
+                <button class="confirm-btn-delete" id="confirm-delete">确认删除</button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="page-content">
@@ -259,7 +353,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix4"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix5"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -437,22 +531,72 @@
         });
     }
 
+    // 通用确认弹窗函数
+    function showConfirmDialog(title, message, onConfirm) {
+        var overlay = document.getElementById('confirm-overlay');
+        var titleEl = document.getElementById('confirm-title');
+        var messageEl = document.getElementById('confirm-message');
+        var cancelBtn = document.getElementById('confirm-cancel');
+        var deleteBtn = document.getElementById('confirm-delete');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        overlay.classList.add('show');
+        
+        // 清除之前的事件监听器
+        cancelBtn.onclick = null;
+        deleteBtn.onclick = null;
+        overlay.onclick = null;
+        
+        // 取消按钮
+        cancelBtn.onclick = function() {
+            overlay.classList.remove('show');
+        };
+        
+        // 点击遮罩层关闭
+        overlay.onclick = function(e) {
+            if (e.target === overlay) {
+                overlay.classList.remove('show');
+            }
+        };
+        
+        // 确认按钮
+        deleteBtn.onclick = function() {
+            overlay.classList.remove('show');
+            if (onConfirm) onConfirm();
+        };
+        
+        // ESC键关闭
+        document.onkeydown = function(e) {
+            if (e.key === 'Escape') {
+                overlay.classList.remove('show');
+                document.onkeydown = null;
+            }
+        };
+    }
+
     function bindDeleteEvents() {
         document.querySelectorAll('.delete-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var taskId = this.dataset.taskId;
-                if (confirm('确定要删除任务 #' + taskId.substring(0, 8) + ' 吗？')) {
-                    deleteTask(taskId);
-                }
+                var shortId = taskId.substring(0, 8);
+                showConfirmDialog(
+                    '确认删除',
+                    '确定要删除任务 #' + shortId + ' 吗？此操作不可恢复。',
+                    function() { deleteTask(taskId); }
+                );
             });
         });
 
         var batchDeleteBtn = document.getElementById('batch-delete-btn');
         batchDeleteBtn.addEventListener('click', function() {
             if (selectedTasks.size === 0) return;
-            if (confirm('确定要删除选中的 ' + selectedTasks.size + ' 个任务吗？')) {
-                batchDeleteTasks(Array.from(selectedTasks));
-            }
+            showConfirmDialog(
+                '确认批量删除',
+                '确定要删除选中的 ' + selectedTasks.size + ' 个任务吗？此操作不可恢复。',
+                function() { batchDeleteTasks(Array.from(selectedTasks)); }
+            );
         });
     }
 
