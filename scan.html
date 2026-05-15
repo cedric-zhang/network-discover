@@ -5,6 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描配置</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+    .btn-quick {
+        padding: 6px 12px;
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        margin-right: 8px;
+        transition: all 0.2s;
+    }
+    .btn-quick:hover {
+        background: var(--accent-cyan);
+        color: var(--bg-primary);
+    }
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        border: 1px solid var(--border-color);
+        transition: all 0.2s;
+        margin-bottom: 16px;
+    }
+    .back-btn:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+    </style>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -20,6 +54,8 @@
 
     <div class="container">
         <div class="page-content">
+            <a href="/tasks.html" class="back-btn">← 返回任务列表</a>
+
             <div class="page-title">扫描配置</div>
             <div class="page-subtitle">配置扫描目标和参数</div>
 
@@ -91,14 +127,14 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.8"></script>
+    <script src="/static/js/app.js?v=0.9.9"></script>
     <script>
-    
+
     // 快捷时间设置
     function setQuickTime(preset) {
         var now = new Date();
         var target = new Date();
-        
+
         if (preset === 'tomorrow-9') {
             target.setDate(now.getDate() + 1);
             target.setHours(9, 0, 0, 0);
@@ -110,7 +146,7 @@
             target.setDate(now.getDate() + daysUntilMonday);
             target.setHours(9, 0, 0, 0);
         }
-        
+
         var dtInput = document.getElementById("schedule-datetime");
         var year = target.getFullYear();
         var month = String(target.getMonth() + 1).padStart(2, "0");
@@ -118,7 +154,7 @@
         var hours = String(target.getHours()).padStart(2, "0");
         var mins = String(target.getMinutes()).padStart(2, "0");
         dtInput.value = year + "-" + month + "-" + day + "T" + hours + ":" + mins;
-        
+
         updateCronPreview();
     }
 
@@ -265,22 +301,5 @@
         console.log('Scan button event bound successfully');
     })();
     </script>
-
-    <style>
-    .btn-quick {
-        padding: 6px 12px;
-        border-radius: 6px;
-        background: var(--bg-card);
-        color: var(--text-secondary);
-        border: 1px solid var(--border-color);
-        cursor: pointer;
-        margin-right: 8px;
-        transition: all 0.2s;
-    }
-    .btn-quick:hover {
-        background: var(--accent-cyan);
-        color: var(--bg-primary);
-    }
-    </style>
 </body>
 </html>

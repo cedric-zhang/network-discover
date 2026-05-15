@@ -4,7 +4,7 @@
  * 功能: 真实数据绑定 + 扫描进度跟踪 + Chart.js 图表
  */
 
-// ===== Toast 提示系统 (v0.9.8 CSS动画版) =====
+// ===== Toast 提示系统 (v0.9.9 CSS动画版) =====
 // 使用 CSS animation 控制消失，不依赖 setTimeout
 function showToast(message, type) {
     type = type || "info";
@@ -253,7 +253,17 @@ function updateCharts(online, offline, unknown, vendorStats) {
 
     var vendorLabels = sortedVendors.map(function(item) { return item[0]; });
     var vendorData = sortedVendors.map(function(item) { return item[1]; });
-    var vendorColors = [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.quaternary, chartColors.quinary];
+    // 厂商图表颜色 - "未知"统一使用灰色
+    var vendorColors = vendorLabels.map(function(label) {
+        if (label === "未知" || label.toLowerCase().includes("unknown")) {
+            return chartColors.unknown;
+        }
+        return chartColors.primary;
+    });
+    // 如果没有"未知"，使用渐变色
+    if (!vendorLabels.includes("未知")) {
+        vendorColors = [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.quaternary, chartColors.quinary].slice(0, vendorLabels.length);
+    }
 
     vendorChart = new Chart(vendorCtx, {
         type: 'bar',
