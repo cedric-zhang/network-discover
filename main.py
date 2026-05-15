@@ -34,7 +34,7 @@ async def asset_detail(ip: str):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.9.7"}
+    return {"status": "ok", "version": "0.9.7-debug"}
 
 # 注册 API 路由
 from app.routers import scan
