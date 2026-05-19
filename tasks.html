@@ -593,7 +593,7 @@
         .then(function(res) { return res.json(); })
         .then(function(data) {
             showToast(data.message || '周期已更新', 'success');
-            document.getElementById('schedule-overlay').style.display = 'none';
+            var overlay = document.getElementById('schedule-overlay'); overlay.style.display = 'none'; overlay.classList.remove('show');
             loadTasks();
         })
         .catch(function() { showToast('更新失败', 'error'); });
@@ -695,7 +695,7 @@
     function showScheduleDialog(taskId) {
         editingTaskId = taskId;
         var overlay = document.getElementById('schedule-overlay');
-        overlay.style.display = 'flex';
+        overlay.style.display = 'flex'; overlay.classList.add('show');
         
         // 重置选择
         document.getElementById('edit-schedule-type').value = 'once';
@@ -705,10 +705,10 @@
         
         // 点击外部关闭
         overlay.onclick = function(e) {
-            if (e.target === overlay) overlay.style.display = 'none';
+            if (e.target === overlay) { overlay.style.display = 'none'; overlay.classList.remove('show'); overlay.classList.remove('show'); }
         };
         document.getElementById('schedule-cancel').onclick = function() {
-            overlay.style.display = 'none';
+            overlay.style.display = 'none'; overlay.classList.remove('show');
         };
     }
     function bindDeleteEvents() {
