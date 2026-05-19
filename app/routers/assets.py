@@ -37,6 +37,9 @@ class AssetsResponse(BaseModel):
     assets: List[AssetResponse]
     total: int
 
+class BatchDeleteRequest(BaseModel):
+    ids: List[str]
+
 
 @router.get("/assets/", response_model=AssetsResponse)
 def get_assets(
@@ -179,4 +182,21 @@ def delete_asset(ip: str, db: Session = Depends(get_db)):
     db.delete(asset)
     db.commit()
     return {"message": "已删除", "ip": ip}
+
+@router.post("/assets/batch")
+def delete_assets_batch(request: BatchDeleteRequest, db: Session = Depends(get_db)):
+    """批量删除资产"""
+    deleted_count = 0
+    not_found = []
+    
+    for ip in request.ids:
+        asset = db.query(IPAsset).filter(IPAsset.ip == ip).first()
+        if asset:
+            db.delete(asset)
+            deleted_count += 1
+        else:
+            not_found.append(ip)
+    
+    db.commit()
+    return {"message": f"已删除 {deleted_count} 个资产", "deleted": deleted_count, "not_found": not_found}
 

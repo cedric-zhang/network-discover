@@ -56,7 +56,126 @@
         color: var(--text-secondary);
         font-size: 13px;
     }
-    </style>
+    
+    /* 确认弹窗样式 */
+    .confirm-overlay {
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .confirm-overlay.show {
+        pointer-events: auto;
+        opacity: 1;
+    }
+    .confirm-dialog {
+        background: #1e2d3d;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+    .confirm-overlay.show .confirm-dialog {
+        transform: scale(1);
+    }
+    .confirm-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #f1f5f9;
+        margin-bottom: 12px;
+    }
+    .confirm-message {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-bottom: 24px;
+        line-height: 1.5;
+    }
+    .confirm-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    .confirm-btn-cancel {
+        padding: 10px 20px;
+        border-radius: 8px;
+        background: transparent;
+        color: #94a3b8;
+        border: 1px solid #475569;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .confirm-btn-cancel:hover {
+        background: #334155;
+        color: #f1f5f9;
+    }
+    .confirm-btn-delete {
+        padding: 10px 20px;
+        border-radius: 8px;
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .confirm-btn-delete:hover {
+        background: #dc2626;
+    }
+    .batch-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 8px 16px;
+        background: var(--bg-card);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    .batch-actions.hidden {
+        display: none;
+    }
+    .batch-delete-btn {
+        padding: 6px 16px;
+        background: #ef4444;
+        color: #fff;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    .batch-delete-btn:hover {
+        background: #dc2626;
+    }
+    .batch-delete-btn:disabled {
+        background: #6b7280;
+        cursor: not-allowed;
+    }
+    .selected-count {
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+    .asset-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--accent-cyan);
+    }
+</style>
 </head>
 <body>
     <nav class="navbar">
@@ -94,6 +213,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th><input type=checkbox class=asset-checkbox id=select-all-assets></th>
                             <th>IP 地址</th>
                             <th>状态</th>
                             <th>主机名</th>
@@ -118,6 +238,7 @@
     var currentPage = 1;
     var pageSize = 10;
     var totalAssets = 0;
+    var selectedAssets = new Set();
 
     function formatDateTime(dateStr) {
         if (!dateStr) return '-';
@@ -173,6 +294,20 @@
             data.assets.forEach(function(asset) {
                 var tr = document.createElement('tr');
 
+                var checkboxTd = document.createElement('td');
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'asset-checkbox asset-item-checkbox';
+                checkbox.dataset.ip = asset.ip;
+                checkbox.checked = selectedAssets.has(asset.ip);
+                checkbox.onchange = function() {
+                    if (this.checked) selectedAssets.add(this.dataset.ip);
+                    else selectedAssets.delete(this.dataset.ip);
+                    updateBatchActions();
+                };
+                checkboxTd.appendChild(checkbox);
+                tr.appendChild(checkboxTd);
+
                 var ipTd = document.createElement('td');
                 var ipLink = document.createElement('a');
                 ipLink.href = '/asset/' + asset.ip;
@@ -224,6 +359,7 @@
             });
 
             renderPagination();
+            bindBatchEvents();
         })
         .catch(function(error) {
             console.error('加载资产失败:', error);
@@ -273,6 +409,20 @@
                 loadAssets();
             });
         });
+    }
+
+    function bindBatchEvents() {
+        document.getElementById('batch-delete-btn').onclick = batchDeleteAssets;
+        var selectAll = document.getElementById('select-all-assets');
+        selectAll.checked = false;
+        selectAll.onchange = function() {
+            document.querySelectorAll('.asset-item-checkbox').forEach(function(cb) {
+                cb.checked = selectAll.checked;
+                if (selectAll.checked) selectedAssets.add(cb.dataset.ip);
+                else selectedAssets.delete(cb.dataset.ip);
+            });
+            updateBatchActions();
+        };
     }
 
     function exportCSV() {
