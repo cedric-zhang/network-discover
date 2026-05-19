@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix6">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix7">
     <style>
         .task-tabs {
             display: flex;
@@ -355,7 +355,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix6"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix7"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -364,23 +364,23 @@
     var selectedTasks = new Set();
     var currentPage = 1;
     var pageSize = 10;
+    var totalTasks = 0;          // API返回的总数
+    var totalPagesFromAPI = 1;   // API返回的总页数
 
     function loadTasks() {
-        fetch('/api/scan/tasks?page=' + currentPage + '&page_size=' + pageSize)
+        var url = '/api/scan/tasks?page=' + currentPage + '&page_size=' + pageSize;
+        if (currentFilter !== 'all') {
+            url += '&status=' + currentFilter;
+        }
+        
+        fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            var newTasks = data.tasks || [];
-            var newJSON = JSON.stringify(newTasks.map(function(t) {
-                return { id: t.task_id, status: t.status, target: t.target, name: t.name, time: t.created_at };
-            }));
-
-            if (newJSON !== lastTasksJSON) {
-                lastTasksJSON = newJSON;
-                allTasks = newTasks;
-                currentPage = 1;  // 数据变化时回到第一页
-                renderTasks();
-                updateCounts();
-            }
+            allTasks = data.tasks || [];
+            totalTasks = data.total || 0;
+            totalPagesFromAPI = data.total_pages || 1;
+            renderTasks();
+            updateCountsFromAPI();
         })
         .catch(function(err) {
             console.error('加载任务失败:', err);
@@ -388,7 +388,10 @@
                 '<div class="empty-state-task">加载失败，请刷新页面</div>';
         });
     }
-
+    
+    function updateCountsFromAPI() {
+        document.getElementById('task-count').textContent = '共 ' + totalTasks + ' 条任务';
+    }
     function getFilteredTasks() {
         if (currentFilter === 'all') {
             return allTasks;
@@ -407,19 +410,12 @@
     }
 
     function renderTasks() {
-        var filtered = getFilteredTasks();
-        var totalPages = Math.ceil(filtered.length / pageSize);
-        if (currentPage > totalPages && totalPages > 0) {
-            currentPage = totalPages;
-        }
-
-        var startIndex = (currentPage - 1) * pageSize;
-        var endIndex = startIndex + pageSize;
-        var pageTasks = filtered.slice(startIndex, endIndex);
+        var pageTasks = allTasks;
+        var totalPages = totalPagesFromAPI;
 
         var container = document.getElementById('task-list');
 
-        if (filtered.length === 0) {
+        if (pageTasks.length === 0) {
             container.innerHTML = '<div class="empty-state-task">暂无扫描任务<br><br><a href="/scan.html">去创建一个 →</a></div>';
             document.getElementById('batch-actions').classList.add('hidden');
             document.getElementById('pagination').classList.add('hidden');
@@ -450,7 +446,7 @@
             '</div>';
         }).join('');
 
-        renderPagination(filtered.length, totalPages);
+        renderPagination(totalTasks, totalPagesFromAPI);
         bindCheckboxEvents();
         bindDeleteEvents();
     }
@@ -491,16 +487,20 @@
         pagination.querySelectorAll('.pagination-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var page = this.dataset.page;
+                var newPage = currentPage;
                 if (page === 'prev' && currentPage > 1) {
-                    currentPage--;
+                    newPage = currentPage - 1;
                 } else if (page === 'next' && currentPage < totalPages) {
-                    currentPage++;
+                    newPage = currentPage + 1;
                 } else if (page !== 'prev' && page !== 'next') {
-                    currentPage = parseInt(page);
+                    newPage = parseInt(page);
                 }
-                selectedTasks.clear();
-                updateSelectedCount();
-                renderTasks();
+                if (newPage !== currentPage) {
+                    currentPage = newPage;
+                    selectedTasks.clear();
+                    updateSelectedCount();
+                    loadTasks();
+                }
             });
         });
     }
