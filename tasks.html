@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix9">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.9.9-fix10">
     <style>
         .task-tabs {
             display: flex;
@@ -353,19 +353,24 @@
 
     
     <!-- 编辑周期弹窗 -->
-    <div class="confirm-overlay" id="schedule-overlay">
-        <div class="schedule-dialog">
-            <h3>编辑扫描周期</h3>
-            <div class="schedule-options" id="schedule-options">
-                <div class="schedule-option" data-value="once">单次执行</div>
-                <div class="schedule-option" data-value="daily">每天执行</div>
-                <div class="schedule-option" data-value="weekly">每周执行</div>
-                <div class="schedule-option" data-value="monthly">每月执行</div>
-                <div class="schedule-option" data-value="custom">自定义 cron</div>
+    <!-- 编辑周期弹窗 -->
+    <div class="confirm-overlay" id="schedule-overlay" style="display: none;">
+        <div class="confirm-dialog">
+            <div class="confirm-title">编辑扫描周期</div>
+            <div style="margin: 16px 0;">
+                <label style="color: #a0aec0; margin-bottom: 8px; display: block;">调度方式</label>
+                <select id="edit-schedule-type" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                    <option value="once">单次执行</option>
+                    <option value="daily">每天执行</option>
+                    <option value="weekly">每周执行</option>
+                    <option value="monthly">每月执行</option>
+                    <option value="custom">自定义时间</option>
+                </select>
             </div>
-            <div class="cron-input-wrapper" id="cron-input-wrapper">
-                <input type="text" class="cron-input" id="cron-input" placeholder="例: 0 9 * * * (每天9:00)">
-                <div class="cron-hint">格式: 分钟 小时 日 月 星期（例: 0 9 * * 1-5 = 工作日9点）</div>
+            <div id="edit-datetime-group" style="display: none; margin: 16px 0;">
+                <label style="color: #a0aec0; margin-bottom: 8px; display: block;">选择执行时间</label>
+                <input type="datetime-local" id="edit-schedule-datetime" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                <div id="edit-cron-preview" style="color: #718096; margin-top: 8px; font-size: 12px;"></div>
             </div>
             <div class="confirm-buttons">
                 <button class="confirm-btn-cancel" id="schedule-cancel">取消</button>
@@ -403,7 +408,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.9.9-fix9"></script>
+    <script src="/static/js/app.js?v=0.9.9-fix10"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -549,6 +554,51 @@
                     currentPage = newPage;
                     selectedTasks.clear();
                     updateSelectedCount();
+
+    // 编辑周期弹窗事件监听
+    document.getElementById('edit-schedule-type').addEventListener('change', function() {
+        var dtGroup = document.getElementById('edit-datetime-group');
+        if (this.value === 'custom') {
+            dtGroup.style.display = 'block';
+        } else {
+            dtGroup.style.display = 'none';
+        }
+    });
+
+    document.getElementById('edit-schedule-datetime').addEventListener('change', function() {
+        var preview = document.getElementById('edit-cron-preview');
+        if (this.value) {
+            var cron = generateCronFromDate(this.value);
+            preview.textContent = '生成的 Cron: ' + cron;
+        } else {
+            preview.textContent = '';
+        }
+    });
+
+    document.getElementById('schedule-save').addEventListener('click', function() {
+        var scheduleType = document.getElementById('edit-schedule-type').value;
+        var cronExpr = null;
+        if (scheduleType === 'custom') {
+            cronExpr = generateCronFromDate(document.getElementById('edit-schedule-datetime').value);
+        }
+        
+        fetch('/api/scan/tasks/' + editingTaskId + '/schedule', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                schedule_type: scheduleType,
+                cron_expr: cronExpr
+            })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            showToast(data.message || '周期已更新', 'success');
+            document.getElementById('schedule-overlay').style.display = 'none';
+            loadTasks();
+        })
+        .catch(function() { showToast('更新失败', 'error'); });
+    });
+
                     loadTasks();
                 }
             });
@@ -631,62 +681,36 @@
     var editingTaskId = null;
     var selectedSchedule = 'once';
 
+
+    function generateCronFromDate(dateStr) {
+        if (!dateStr) return null;
+        var dt = new Date(dateStr);
+        var minute = dt.getMinutes();
+        var hour = dt.getHours();
+        var day = dt.getDate();
+        var month = dt.getMonth() + 1;
+        return minute + " " + hour + " " + day + " " + month + " *";
+    }
+
     function showScheduleDialog(taskId) {
         editingTaskId = taskId;
         var overlay = document.getElementById('schedule-overlay');
-        overlay.classList.add('show');
+        overlay.style.display = 'flex';
         
         // 重置选择
-        selectedSchedule = 'once';
-        document.querySelectorAll('.schedule-option').forEach(function(opt) {
-            opt.classList.remove('selected');
-            if (opt.dataset.value === 'once') opt.classList.add('selected');
-        });
-        document.getElementById('cron-input-wrapper').classList.remove('show');
-        document.getElementById('cron-input').value = '';
+        document.getElementById('edit-schedule-type').value = 'once';
+        document.getElementById('edit-datetime-group').style.display = 'none';
+        document.getElementById('edit-schedule-datetime').value = '';
+        document.getElementById('edit-cron-preview').textContent = '';
         
-        // 绑定选项点击
-        document.querySelectorAll('.schedule-option').forEach(function(opt) {
-            opt.onclick = function() {
-                document.querySelectorAll('.schedule-option').forEach(function(o) { o.classList.remove('selected'); });
-                opt.classList.add('selected');
-                selectedSchedule = opt.dataset.value;
-                if (selectedSchedule === 'custom') {
-                    document.getElementById('cron-input-wrapper').classList.add('show');
-                } else {
-                    document.getElementById('cron-input-wrapper').classList.remove('show');
-                }
-            };
-        });
-        
-        // 取消按钮
-        document.getElementById('schedule-cancel').onclick = function() { overlay.classList.remove('show'); };
-        overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove('show'); };
-        
-        // 保存按钮
-        document.getElementById('schedule-save').onclick = function() {
-            var scheduleData = { schedule_type: selectedSchedule };
-            if (selectedSchedule === 'custom') {
-                var cronExpr = document.getElementById('cron-input').value.trim();
-                if (!cronExpr) { showToast('请输入cron表达式', 'error'); return; }
-                scheduleData.cron_expr = cronExpr;
-            }
-            
-            fetch('/api/scan/tasks/' + editingTaskId + '/schedule', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(scheduleData)
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                showToast(data.message || '周期已更新', 'success');
-                overlay.classList.remove('show');
-                loadTasks();
-            })
-            .catch(function() { showToast('更新失败', 'error'); });
+        // 点击外部关闭
+        overlay.onclick = function(e) {
+            if (e.target === overlay) overlay.style.display = 'none';
+        };
+        document.getElementById('schedule-cancel').onclick = function() {
+            overlay.style.display = 'none';
         };
     }
-
     function bindDeleteEvents() {
         // 编辑周期按钮事件
         document.querySelectorAll('.edit-btn').forEach(function(btn) {
