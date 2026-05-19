@@ -1,60 +1,160 @@
-# 网络设备发现平台 v0.10.0
+# Tognix Network Discovery Platform
 
-## 功能特性
+A comprehensive network device discovery and asset management platform built with FastAPI.
 
-- **网络扫描**: 支持对指定网段进行设备发现和端口扫描
-- **资产管理**: 自动记录和管理网络中的设备资产信息
-- **定时任务**: 使用 APScheduler 支持定期执行扫描任务
-- **前端界面**: 直观的Web界面，支持实时数据显示
-- **API接口**: 完整的REST API，支持第三方集成
+## Features
 
-## 技术栈
+- **Network Scanning**: Discover devices and scan ports using nmap
+- **Asset Management**: Automatically record and manage network device information
+- **Scheduled Tasks**: Periodic scanning with APScheduler support
+- **Web Interface**: Intuitive dashboard with real-time data visualization
+- **REST API**: Complete API endpoints for third-party integration
 
-- **后端**: FastAPI, SQLAlchemy, APScheduler
-- **前端**: Vanilla JavaScript, HTML/CSS
-- **数据库**: SQLite
-- **部署**: Systemd + Nginx 反向代理
+## Tech Stack
 
-## 部署说明
+- **Backend**: FastAPI, SQLAlchemy, APScheduler
+- **Frontend**: Vanilla JavaScript, HTML/CSS
+- **Database**: SQLite
+- **Scanner**: nmap
+- **Deployment**: systemd + Nginx reverse proxy
 
-使用一键部署脚本：
+## Quick Start
 
+### Prerequisites
 
+- RockyLinux 9.7 (or similar RHEL-based system)
+- Python 3.9+
+- nmap installed
 
-该脚本将：
-- 安装必要的依赖
-- 配置 Systemd 服务
-- 设置 Nginx 反向代理
-- 启动应用服务
+### Installation
 
-## API端点
+```bash
+# Clone the repository
+git clone https://github.com/cedric-zhang/network-discover.git
+cd network-discover
 
--  - 获取资产列表
--  - 获取资产统计摘要
--  - 提交扫描任务
--  - 获取定时任务列表
--  - 创建定时任务
+# Install dependencies
+pip install -r requirements.txt
 
-## 版本历史
+# Initialize database (auto-created on first run)
+# No manual initialization needed
 
-- **v0.10.0**: 里程碑版本 - fix1-fix12闭环，批量删除+自定义弹窗+后端分页+周期编辑+QA体系
-- **v0.9.9**: 任务中心完整闭环，扫描任务CRUD+分页+批量操作
-- **v0.9.5**: 任务中心UI + 批量删除 + 自定义确认弹窗
-- **v0.9.4**: 扫描反馈优化 + Toast组件
-- **v0.9.3**: 稳定性修复
-- **v0.9.2**: CSV导出功能
-- **v0.9.0**: 定时扫描 + 图表可视化
-- **v0.8.0**: 资产详情页
-- **v0.7.0**: 数据持久化修复
-- **v0.6.0**: 前端数据接入 + 自动化部署脚本
-- **v0.5.0**: APScheduler定时扫描功能
-- **v0.4.0**: 扫描引擎优化
-- **v0.3.0**: 资产管理功能
-- **v0.2.0**: Web界面
-- **v0.1.0**: 基础扫描功能
+# Start the service
+systemctl start network-discovery
+```
 
-## 开发团队
+### Manual Start (for development)
 
-- 架构设计与后端开发
-- 前端界面与用户体验
-- 部署与运维脚本
+```bash
+cd /root/network-discovery
+python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4
+```
+
+## Deployment
+
+### systemd Service
+
+Service file: `/etc/systemd/system/network-discovery.service`
+
+```ini
+[Unit]
+Description=Tognix Network Discovery Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/network-discovery
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Service Management
+
+```bash
+systemctl daemon-reload
+systemctl enable network-discovery
+systemctl start network-discovery
+systemctl status network-discovery
+systemctl restart network-discovery
+systemctl stop network-discovery
+
+# View logs
+journalctl -u network-discovery -f
+```
+
+### Nginx Configuration
+
+Domain-based routing on port 800:
+
+```nginx
+# /etc/nginx/conf.d/default.conf
+server {
+    listen 800 default_server;
+    server_name _;
+    return 404;
+}
+
+# /etc/nginx/conf.d/network-discover.conf
+server {
+    listen 800;
+    server_name network-discover.irigud.com;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    location /static/ {
+        alias /root/network-discovery/static/;
+        expires 30d;
+    }
+}
+```
+
+## API Endpoints
+
+- `GET /health` - Health check with version info
+- `GET /api/assets/` - Asset list with pagination
+- `GET /api/assets/stats` - Asset statistics summary
+- `POST /api/scan/submit` - Submit scan task
+- `GET /api/scan/tasks` - Get scan task list
+- `PUT /api/scan/tasks/{task_id}/schedule` - Update task schedule
+- `DELETE /api/scan/tasks/batch` - Batch delete tasks
+
+## Version History
+
+- **v0.10.1**: Infrastructure enhancement (systemd, Nginx domain routing, docs)
+- **v0.10.0**: Milestone - fix1-fix12 complete, batch delete, pagination, schedule editing
+- **v0.9.9**: Task center complete - CRUD + pagination + batch operations
+- **v0.9.5**: Task center UI + custom confirm dialog
+- **v0.9.4**: Scan feedback optimization + Toast component
+- **v0.9.3**: Stability fixes
+- **v0.9.2**: CSV export
+- **v0.9.0**: Scheduled scanning + charts visualization
+- **v0.8.0**: Asset detail page
+- **v0.7.0**: Data persistence fix
+- **v0.6.0**: Frontend integration + deployment script
+- **v0.5.0**: APScheduler scheduled scanning
+- **v0.4.0**: Scanner optimization
+- **v0.3.0**: Asset management
+- **v0.2.0**: Web interface
+- **v0.1.0**: Basic scanning
+
+## Repository
+
+https://github.com/cedric-zhang/network-discover
+
+## License
+
+MIT License
