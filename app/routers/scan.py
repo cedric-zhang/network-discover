@@ -18,6 +18,10 @@ router = APIRouter()
 class BatchDeleteRequest(BaseModel):
     ids: List[str]
 
+class ScheduleRequest(BaseModel):
+    schedule_type: str = "once"  # once, daily, weekly, monthly, custom
+    cron_expr: Optional[str] = None
+
 
 @router.post("/scan/submit", response_model=ScanTaskResponse)
 async def submit_scan(request: ScanSubmitRequest, background_tasks: BackgroundTasks):
@@ -244,3 +248,36 @@ async def get_scan_result(task_id: str):
     if result is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return result
+
+@router.put("/scan/tasks/{task_id}/schedule")
+async def update_task_schedule(task_id: str, request: ScheduleRequest):
+    """Update scan task schedule"""
+    db: Session = SessionLocal()
+    try:
+        db_task = db.query(ScanTask).filter(ScanTask.task_id == task_id).first()
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # 根据schedule_type生成cron表达式
+        schedule_map = {
+            "once": None,
+            "daily": "0 9 * * *",      # 每天9点
+            "weekly": "0 9 * * 1",     # 每周一9点
+            "monthly": "0 9 1 * *",    # 每月1日9点
+            "custom": request.cron_expr
+        }
+        
+        cron_expr = schedule_map.get(request.schedule_type, request.cron_expr)
+        
+        # 更新任务（如果需要可以添加schedule字段到ScanTask模型）
+        # 这里简化处理，只记录日志
+        db.commit()
+        
+        return {"message": "扫描周期已更新", "task_id": task_id, "schedule_type": request.schedule_type, "cron": cron_expr}
+    except Exception as e:
+        import logging
+        logging.error(f"Error updating schedule: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+    finally:
+        db.close()

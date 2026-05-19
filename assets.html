@@ -246,29 +246,48 @@
         return date.toLocaleString('zh-CN');
     }
 
-    function deleteAsset(ip) {
-        if (!confirm('确认删除设备 ' + ip + ' 吗？\n此操作将永久移除该资产记录。')) {
-            return;
-        }
+    function showConfirmDialog(title, message, onConfirm) {
+        var overlay = document.getElementById("confirm-overlay");
+        document.getElementById("confirm-title").textContent = title;
+        document.getElementById("confirm-message").textContent = message;
+        overlay.classList.add("show");
+        document.getElementById("confirm-cancel").onclick = function() { overlay.classList.remove("show"); }; 
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove("show"); }; 
+        document.getElementById("confirm-delete").onclick = function() { overlay.classList.remove("show"); if (onConfirm) onConfirm(); }; 
+    }
 
-        fetch('/api/assets/' + ip, {
-            method: 'DELETE'
-        })
-        .then(function(res) {
-            if (res.ok) {
-                showToast('已删除 ' + ip, 'success');
-                loadAssets();
-            } else if (res.status === 404) {
-                showToast('资产不存在', 'error');
-            } else {
-                showToast('删除失败', 'error');
-            }
-        })
-        .catch(function(err) {
-            showToast('删除失败: 网络错误', 'error');
+    function deleteAsset(ip) {
+        showConfirmDialog("确认删除", "确定要删除设备 " + ip + " 吗？此操作不可恢复。", function() { 
+            fetch("/api/assets/" + ip, { method: "DELETE" }) 
+            .then(function(res) { 
+                if (res.ok) { showToast("已删除 " + ip, "success"); selectedAssets.delete(ip); loadAssets(); } 
+                else if (res.status === 404) { showToast("资产不存在", "error"); } 
+                else { showToast("删除失败", "error"); } 
+            }) 
+            .catch(function() { showToast("删除失败: 网络错误", "error"); }); 
         });
     }
 
+    function batchDeleteAssets() {
+        if (selectedAssets.size === 0) return;
+        showConfirmDialog("确认批量删除", "确定要删除选中的 " + selectedAssets.size + " 个资产吗？", function() { 
+            var btn = document.getElementById("batch-delete-btn");
+            btn.disabled = true; btn.textContent = "删除中..."; 
+            fetch("/api/assets/batch", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ids: Array.from(selectedAssets)}) }) 
+            .then(function(res) { return res.json(); }) 
+            .then(function(data) { showToast(data.message || "已删除 " + data.deleted + " 个", "success"); selectedAssets.clear(); loadAssets(); }) 
+            .catch(function() { showToast("批量删除失败", "error"); }) 
+            .finally(function() { btn.disabled = false; btn.textContent = "批量删除"; updateBatchActions(); }); 
+        });
+    }
+
+    function updateBatchActions() {
+        var count = selectedAssets.size;
+        document.getElementById("selected-count").textContent = "已选择 " + count + " 个"; 
+        document.getElementById("batch-delete-btn").disabled = count === 0;
+        if (count > 0) document.getElementById("batch-actions").classList.remove("hidden"); 
+        else document.getElementById("batch-actions").classList.add("hidden"); 
+    }
     function loadAssets() {
         var searchInput = document.getElementById('search-input').value;
         var statusFilter = document.getElementById('status-filter').value;
