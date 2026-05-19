@@ -18,7 +18,7 @@ ai-team
 
 ---
 
-## 📊 当前状态 (v0.9.9-fix7)
+## 📊 当前状态 (v0.9.9-fix9)
 
 ### ✅ 最新修复 (Task 025)
 *   **前端分页渲染**：loadTasks()保存API分页元数据(totalTasks/totalPagesFromAPI)
