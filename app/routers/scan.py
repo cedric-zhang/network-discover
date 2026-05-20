@@ -302,3 +302,50 @@ async def update_task_schedule(task_id: str, request: ScheduleRequest):
         raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
     finally:
         db.close()
+
+@router.post("/scan/tasks/{task_id}/trigger")
+async def trigger_task_immediately(task_id: str):
+    """Trigger a scan task to run immediately"""
+    from app.services.scanner import scanner_service
+    from app.services.task_manager import task_manager
+    import logging
+
+    db: Session = SessionLocal()
+    try:
+        db_task = db.query(ScanTask).filter(ScanTask.task_id == task_id).first()
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        # Check if task is already running
+        if db_task.status in ["running", "scanning"]:
+            return {"message": "任务已在运行中", "task_id": task_id, "status": db_task.status}
+
+        # Reset task status to pending and trigger execution
+        db_task.status = "pending"
+        db_task.progress = 0
+        db_task.current_ip = None
+        db_task.updated_at = datetime.utcnow()
+        db.commit()
+
+        # Add to task manager for execution
+        task_manager.tasks[task_id] = {
+            "task_id": task_id,
+            "target": db_task.target,
+            "name": db_task.name,
+            "status": "pending",
+            "created_at": str(db_task.created_at)
+        }
+
+        # Trigger background scan (async)
+        import asyncio
+        asyncio.create_task(scanner_service.run_scan_async(task_id, db_task.target))
+
+        logging.info(f"Task {task_id} triggered for immediate execution")
+
+        return {"message": "任务已立即启动", "task_id": task_id, "status": "pending"}
+    except Exception as e:
+        logging.error(f"Error triggering task: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Trigger failed: {str(e)}")
+    finally:
+        db.close()

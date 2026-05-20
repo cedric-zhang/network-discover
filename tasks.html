@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.10.2">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.10.4">
     <style>
         .task-tabs {
             display: flex;
@@ -62,13 +62,23 @@
         .task-card {
             background: var(--bg-card);
             border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
             border: 1px solid var(--border-color);
             display: grid;
-            grid-template-columns: 32px 90px 90px 1fr 100px 40px;
-            gap: 12px;
+            grid-template-columns: 28px 70px 50px 1fr 100px 32px 32px;
+            grid-template-rows: auto;
+            gap: 8px 12px;
             align-items: center;
+        }
+        .task-card:hover {
+            background: var(--bg-card-hover);
+        }
+        .task-card-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow: hidden;
         }
         .task-checkbox {
             width: 18px;
@@ -95,17 +105,21 @@
             font-size: 14px;
             color: var(--text-primary);
             font-weight: 500;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
         }
         .task-name {
             font-size: 12px;
             color: var(--accent-cyan);
             margin-top: 2px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+        .task-meta {
+            font-size: 11px;
+            color: var(--text-muted);
         }
         .task-status {
             display: flex;
@@ -205,18 +219,23 @@
             background: #dc2626;
         }
         .batch-delete-btn:disabled {
+        .task-progress {
+            margin-top: 6px;
+        }
         .progress-bar-wrapper {
             width: 100%;
-            height: 6px;
-            background: var(--bg-card);
+            height: 5px;
+            background: rgba(255,255,255,0.1);
             border-radius: 3px;
-            margin-top: 8px;
         }
         .progress-bar {
             height: 100%;
             background: var(--accent-cyan);
             border-radius: 3px;
             transition: width 0.3s;
+        }
+        .progress-bar.complete {
+            background: #10b981;
         }
         .spinner {
             display: inline-block;
@@ -397,6 +416,7 @@
             <div style="margin: 16px 0;">
                 <label style="color: #a0aec0; margin-bottom: 8px; display: block;">调度方式</label>
                 <select id="edit-schedule-type" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                    <option value="now">立即执行</option>
                     <option value="once">单次执行</option>
                     <option value="daily">每天执行</option>
                     <option value="weekly">每周执行</option>
@@ -404,8 +424,33 @@
                     <option value="custom">自定义时间</option>
                 </select>
             </div>
-            <div id="edit-datetime-group" style="display: none; margin: 16px 0;">
+            <div id="edit-time-group" style="display: none; margin: 16px 0;">
                 <label style="color: #a0aec0; margin-bottom: 8px; display: block;">选择执行时间</label>
+                <input type="time" id="edit-schedule-time" value="09:00" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                <div id="edit-day-group" style="display: none; margin-top: 12px;">
+                    <label style="color: #a0aec0; margin-bottom: 8px; display: block;">选择星期</label>
+                    <select id="edit-schedule-day" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                        <option value="1">周一</option>
+                        <option value="2">周二</option>
+                        <option value="3">周三</option>
+                        <option value="4">周四</option>
+                        <option value="5">周五</option>
+                        <option value="6">周六</option>
+                        <option value="0">周日</option>
+                    </select>
+                </div>
+                <div id="edit-monthday-group" style="display: none; margin-top: 12px;">
+                    <label style="color: #a0aec0; margin-bottom: 8px; display: block;">选择日期</label>
+                    <select id="edit-schedule-monthday" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
+                        <option value="1">每月 1 日</option>
+                        <option value="15">每月 15 日</option>
+                        <option value="28">每月 28 日</option>
+                    </select>
+                </div>
+                <div id="edit-cron-preview-time" style="color: #718096; margin-top: 8px; font-size: 12px;"></div>
+            </div>
+            <div id="edit-datetime-group" style="display: none; margin: 16px 0;">
+                <label style="color: #a0aec0; margin-bottom: 8px; display: block;">选择自定义时间</label>
                 <input type="datetime-local" id="edit-schedule-datetime" style="width: 100%; padding: 10px; background: #1a202c; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 6px;">
                 <div id="edit-cron-preview" style="color: #718096; margin-top: 8px; font-size: 12px;"></div>
             </div>
@@ -418,7 +463,7 @@
 <div class="container">
         <div class="page-content">
             <div class="page-header-row">
-                <div class="page-title">扫描任务</div>
+                <div class="page-title" style="white-space: nowrap;">扫描任务</div>
                 <a href="/scan.html" class="btn-primary" id="new-task-btn">+ 新建扫描任务</a>
             </div>
             <div class="page-subtitle" id="task-count">加载中...</div>
@@ -445,7 +490,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.10.2"></script>
+    <script src="/static/js/app.js?v=0.10.4"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];
@@ -498,7 +543,7 @@
     }
 
     function renderTasks() {
-        var pageTasks = allTasks;
+        var pageTasks = getFilteredTasks();
         var totalPages = totalPagesFromAPI;
 
         var container = document.getElementById('task-list');
@@ -518,7 +563,7 @@
             var targetType = task.target.includes('/') ? '网段' : '单IP';
             var timeStr = formatTime(task.created_at);
             var isChecked = selectedTasks.has(task.task_id) ? 'checked' : '';
-            var displayName = task.name ? task.name : task.target;
+            var displayName = task.target;
             var nameDisplay = task.name ? '<div class="task-name">' + task.name + '</div>' : '';
 
             return '<div class="task-card">' +
@@ -598,13 +643,60 @@
 
     // 编辑周期弹窗事件监听
     document.getElementById('edit-schedule-type').addEventListener('change', function() {
-        var dtGroup = document.getElementById('edit-datetime-group');
-        if (this.value === 'custom') {
-            dtGroup.style.display = 'block';
-        } else {
-            dtGroup.style.display = 'none';
+        var timeGroup = document.getElementById('edit-time-group');
+        var datetimeGroup = document.getElementById('edit-datetime-group');
+        var dayGroup = document.getElementById('edit-day-group');
+        var monthdayGroup = document.getElementById('edit-monthday-group');
+
+        // Hide all first
+        timeGroup.style.display = 'none';
+        datetimeGroup.style.display = 'none';
+        dayGroup.style.display = 'none';
+        monthdayGroup.style.display = 'none';
+
+        var val = this.value;
+        if (val === 'daily') {
+            timeGroup.style.display = 'block';
+            updateEditCronPreview();
+        } else if (val === 'weekly') {
+            timeGroup.style.display = 'block';
+            dayGroup.style.display = 'block';
+            updateEditCronPreview();
+        } else if (val === 'monthly') {
+            timeGroup.style.display = 'block';
+            monthdayGroup.style.display = 'block';
+            updateEditCronPreview();
+        } else if (val === 'custom') {
+            datetimeGroup.style.display = 'block';
         }
     });
+
+    function updateEditCronPreview() {
+        var scheduleType = document.getElementById('edit-schedule-type').value;
+        var preview = document.getElementById('edit-cron-preview-time');
+        var timeInput = document.getElementById('edit-schedule-time').value || '09:00';
+        var parts = timeInput.split(':');
+        var hour = parts[0] || '09';
+        var minute = parts[1] || '00';
+
+        var cronExpr = '';
+        if (scheduleType === 'daily') {
+            cronExpr = minute + ' ' + hour + ' * * *';
+            preview.textContent = '每天 ' + hour + ':' + minute + ' 执行 (Cron: ' + cronExpr + ')';
+        } else if (scheduleType === 'weekly') {
+            var day = document.getElementById('edit-schedule-day').value;
+            cronExpr = minute + ' ' + hour + ' * * ' + day;
+            preview.textContent = '每周指定日 ' + hour + ':' + minute + ' 执行 (Cron: ' + cronExpr + ')';
+        } else if (scheduleType === 'monthly') {
+            var monthday = document.getElementById('edit-schedule-monthday').value;
+            cronExpr = minute + ' ' + hour + ' ' + monthday + ' * *';
+            preview.textContent = '每月 ' + monthday + ' 日 ' + hour + ':' + minute + ' 执行 (Cron: ' + cronExpr + ')';
+        }
+    }
+
+    document.getElementById('edit-schedule-time').addEventListener('change', updateEditCronPreview);
+    document.getElementById('edit-schedule-day').addEventListener('change', updateEditCronPreview);
+    document.getElementById('edit-schedule-monthday').addEventListener('change', updateEditCronPreview);
 
     document.getElementById('edit-schedule-datetime').addEventListener('change', function() {
         var preview = document.getElementById('edit-cron-preview');

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 资产清单</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.10.2">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.10.4">
     <style>
     .btn-delete {
         padding: 4px 12px;
@@ -136,17 +136,26 @@
         background: #dc2626;
     }
     .batch-actions {
-        display: flex;
+        display: flex !important;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
         margin-bottom: 16px;
-        padding: 8px 16px;
+        margin-top: 16px;
+        padding: 10px 16px;
         background: var(--bg-card);
         border-radius: 8px;
         border: 1px solid var(--border-color);
     }
     .batch-actions.hidden {
-        display: none;
+        display: none !important;
+    }
+    .select-all-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .select-all-wrapper label {
+        cursor: pointer;
     }
     .batch-delete-btn {
         padding: 6px 16px;
@@ -209,11 +218,21 @@
                 <button class="btn-secondary" onclick="exportCSV()">导出 CSV</button>
             </div>
 
+            <!-- 批量操作栏 -->
+            <div class="batch-actions hidden" id="batch-actions">
+                <div class="select-all-wrapper">
+                    <input type="checkbox" id="select-all-assets" class="asset-checkbox">
+                    <label for="select-all-assets" style="font-size: 13px; color: var(--text-secondary);">全选</label>
+                </div>
+                <span class="selected-count" id="selected-count">已选择 0 个</span>
+                <button class="batch-delete-btn" id="batch-delete-btn" disabled>批量删除</button>
+            </div>
+
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th><input type=checkbox class=asset-checkbox id=select-all-assets></th>
+                            <th><input type="checkbox" class="asset-checkbox" id="header-select-all"></th>
                             <th>IP 地址</th>
                             <th>状态</th>
                             <th>主机名</th>
@@ -231,11 +250,7 @@
             </div>
             <div class="pagination hidden" id="pagination"></div>
 
-            <!-- 批量操作栏 -->
-            <div class="batch-actions hidden" id="batch-actions">
-                <span class="selected-count" id="selected-count">已选择 0 个</span>
-                <button class="batch-delete-btn" id="batch-delete-btn" disabled>批量删除</button>
-            </div>
+
         </div>
     </div>
 
@@ -251,7 +266,7 @@
             </div>
         </div>
     </div>
-    <script src="/static/js/app.js?v=0.10.2"></script>
+    <script src="/static/js/app.js?v=0.10.4"></script>
     <script>
     var currentPage = 1;
     var pageSize = 10;
@@ -301,10 +316,35 @@
 
     function updateBatchActions() {
         var count = selectedAssets.size;
-        document.getElementById("selected-count").textContent = "已选择 " + count + " 个"; 
-        document.getElementById("batch-delete-btn").disabled = count === 0;
-        if (count > 0) document.getElementById("batch-actions").classList.remove("hidden"); 
-        else document.getElementById("batch-actions").classList.add("hidden"); 
+        console.log("[BATCH] updateBatchActions called, count:", count);
+
+        var countEl = document.getElementById("selected-count");
+        var batchActionsEl = document.getElementById("batch-actions");
+        var batchBtn = document.getElementById("batch-delete-btn");
+        var selectAll = document.getElementById("select-all-assets");
+        var headerSelectAll = document.getElementById("header-select-all");
+
+        if (countEl) countEl.textContent = "已选择 " + count + " 个";
+        if (batchBtn) batchBtn.disabled = count === 0;
+
+        // Show batch-actions when ANY item is selected (count >= 1)
+        if (batchActionsEl) {
+            if (count >= 1) {
+                batchActionsEl.classList.remove("hidden");
+                console.log("[BATCH] batch-actions shown (count=" + count + ")");
+            } else {
+                batchActionsEl.classList.add("hidden");
+                console.log("[BATCH] batch-actions hidden");
+            }
+        } else {
+            console.error("[BATCH] batch-actions element not found!");
+        }
+
+        // Update select-all checkbox state
+        var checkboxes = document.querySelectorAll('.asset-item-checkbox');
+        var allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(function(cb) { return cb.checked; });
+        if (selectAll) selectAll.checked = allChecked;
+        if (headerSelectAll) headerSelectAll.checked = allChecked;
     }
     function loadAssets() {
         var searchInput = document.getElementById('search-input').value;
@@ -338,8 +378,10 @@
                 checkbox.dataset.ip = asset.ip;
                 checkbox.checked = selectedAssets.has(asset.ip);
                 checkbox.onchange = function() {
+                    console.log("[CHECKBOX] onchange fired for:", this.dataset.ip, "checked:", this.checked);
                     if (this.checked) selectedAssets.add(this.dataset.ip);
                     else selectedAssets.delete(this.dataset.ip);
+                    console.log("[CHECKBOX] selectedAssets now:", Array.from(selectedAssets));
                     updateBatchActions();
                 };
                 checkboxTd.appendChild(checkbox);
@@ -450,16 +492,36 @@
 
     function bindBatchEvents() {
         document.getElementById('batch-delete-btn').onclick = batchDeleteAssets;
+
+        // Main select-all in batch-actions bar
         var selectAll = document.getElementById('select-all-assets');
-        selectAll.checked = false;
-        selectAll.onchange = function() {
-            document.querySelectorAll('.asset-item-checkbox').forEach(function(cb) {
-                cb.checked = selectAll.checked;
-                if (selectAll.checked) selectedAssets.add(cb.dataset.ip);
-                else selectedAssets.delete(cb.dataset.ip);
-            });
-            updateBatchActions();
-        };
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.onchange = function() {
+                document.querySelectorAll('.asset-item-checkbox').forEach(function(cb) {
+                    cb.checked = selectAll.checked;
+                    if (selectAll.checked) selectedAssets.add(cb.dataset.ip);
+                    else selectedAssets.delete(cb.dataset.ip);
+                });
+                updateBatchActions();
+            };
+        }
+
+        // Header checkbox also acts as select-all
+        var headerSelectAll = document.getElementById('header-select-all');
+        if (headerSelectAll) {
+            headerSelectAll.checked = false;
+            headerSelectAll.onchange = function() {
+                document.querySelectorAll('.asset-item-checkbox').forEach(function(cb) {
+                    cb.checked = headerSelectAll.checked;
+                    if (headerSelectAll.checked) selectedAssets.add(cb.dataset.ip);
+                    else selectedAssets.delete(cb.dataset.ip);
+                });
+                // Sync main select-all
+                if (selectAll) selectAll.checked = headerSelectAll.checked;
+                updateBatchActions();
+            };
+        }
     }
 
     function exportCSV() {

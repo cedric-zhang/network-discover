@@ -1,74 +1,123 @@
 # 网络设备发现平台 — Claude Code 开发上下文
 
-> **最后更新**: 2026-05-19
+> 最近更新: 2026-05-20 | 当前版本: **v0.10.2** | 状态: ✅ v0.10.2 已验收通过
 
----
+## 🚨 开发铁律（每次启动必读）
 
-## 🚨 环境强制声明（不遵守 = 任务作废）
+1. **SSH 强制**：必须在 `192.168.88.94` 的 `/root/network-discovery` 下操作，**禁止本地开发**
+   - 每次操作前先确认: `ssh root@192.168.88.94 "hostname"` 输出不是 Windows 路径
+   - **所有命令必须带 SSH 前缀**: `ssh root@192.168.88.94 "cd /root/network-discovery && ..."`
+   - 在本地 `C:\Users\ai` 创建/修改任何项目文件 = 违规
+2. **禁止 `git init`**：仓库已存在，只能 `git add/commit/push`
+3. **版本号规则**：功能迭代 `+0.1.0`，Bug 修复 `+0.0.1`。版本号变更权归军师，严禁自行修改
+4. **每次 commit**：提交信息格式 `[类型] 具体做了什么`
 
-> **你的运行环境是本地开发机 (Windows)，但项目只在远程服务器上！**
-> **📍 唯一合法的开发目录**: 
-> **🔑 唯一合法的操作方式**: 通过 Last failed login: Thu May 14 08:01:34 CST 2026 from 192.168.31.126 on ssh:notty
-There were 9 failed login attempts since the last successful login. 执行所有命令
-> **❌ 绝对禁止**: 在本地  创建/修改任何项目文件、在本地运行 pytest、在本地 git init
+## 🚨 Bug 修复强制流程（每个 Bug 独立执行，不得跳过）
 
-**验证方法**：在执行任何文件操作前，必须先运行：
-ai-team
-/root
+### Step 0：诊断（不改代码，先理解现状）
+```bash
+# 1. 找到相关代码
+grep -n '函数名/元素ID/CSS类' 文件路径
+# 2. 确认 API 是否正常（排除后端问题）
+curl -s -H "Host: network-discover.irigud.com" http://192.168.88.94:800/api/xxx
+# 3. 写 1-2 句话根因分析
+```
 
----
+### Step 1：修复
+- 只改相关文件，不碰无关代码
+- 前端必须同时检查：**HTML 结构 + CSS 样式 + JS 逻辑 + 事件绑定**
+- 常见坑：
+  - `getElementById("x")` 与 HTML 中 `id="y"` 不匹配
+  - CSS `!important` 覆盖新样式
+  - `addEventListener` 重复绑定未移除旧的
+  - 全局变量被 filter/覆盖后污染后续逻辑
 
-## 📊 当前状态 (v0.9.9-fix9)
+### Step 2：自测（交付前必须执行，贴结果）
+```bash
+# 1. grep 确认修改已写入
+grep -n '关键代码片段' 文件路径
+# 2. curl 测试 API（如涉及后端）
+curl -s -H "Host: network-discover.irigud.com" http://192.168.88.94:800/api/xxx
+# 3. 检查三个页面 console 无报错
+```
 
-### ✅ 最新修复 (Task 025)
-*   **前端分页渲染**：loadTasks()保存API分页元数据(totalTasks/totalPagesFromAPI)
-*   **分页控件显示**：使用API返回的真实总数，不再用本地数组长度
-*   **分页切换**：点击页码调用loadTasks()请求后端API，不使用前端切片
-*   **版本号铁律**：严格按任务卡指定版本号，不自行跳级
+### Step 3：交付（禁止只说"已修复"）
+必须按以下格式回复：
+```
+| Bug | 根因 | 修改文件 | grep 验证结果 | curl/API 验证结果 |
+```
+军师复测前，自测结果必须全部通过。
 
-### ✅ 已完成功能
+## 📋 版本历史
 
-### ✅ 已完成 / 已修复
-*   **扫描任务流转**： →  →  状态流转正常
-*   **Result API**： 正常返回数据
-*   **数据持久化**：扫描结果正确保存到数据库，多 worker 环境下数据不丢失
-*   **OS 检测**：nmap  参数生效，OS 信息正确返回（如 Linux 2.6.32）
-*   **端口检测**：5 个开放端口正确返回（22, 80, 1080, 1081, 8000）
+| 版本 | 内容 | 状态 |
+|------|------|------|
+| v0.1.0 | UI 骨架 — 深色 Bento Grid + CSS 变量 + 3 页面 | ✅ |
+| v0.2.0 | FastAPI + Pydantic + 4 REST API | ✅ |
+| v0.3.0 | nmap CLI 封装 + 异步扫描 + XML 解析 | ✅ |
+| v0.4.0 | SQLite + SQLAlchemy + IP Upsert 持久化 | ✅ |
+| v0.5.0 | APScheduler 定时扫描集成 | ✅ |
+| v0.6.0 | Vanilla JS 真实数据绑定 + Nginx/Systemd 部署 | ✅ |
+| v0.9.9-fix1~12 | 分页/批量删除/弹窗修复/QA体系/周期编辑等 | ✅ |
+| v0.10.0 | fix 系列闭环里程碑 | ✅ |
+| v0.10.1 | systemd 服务 + Nginx 域名路由 + README 双语 + GitHub 推送 | ✅ |
+| v0.10.2 | 扫描异步化 + 进度轮询 + 预估时间 + 状态筛选修复 | ✅ |
 
-### ⚠️ 已知限制
-*   **service/product 为空**：数据库存储格式为 ，丢失了 service/product 详细信息
-    *   改进方向：修改存储格式为 
+### 历史教训（重要，避免重蹈覆辙）
 
-### ⏭️ 下一步计划
-*   **v0.7.3 候选**：改进端口信息存储格式，保留 service/product 详情
-*   **v0.8.0 候选**：资产详情页（单 IP 端口/OS 详情展示）、CSV 导出
+- **前端 Bug 不能只看症状**：必须 grep 找根因（如 renderTasks 没调用 getFilteredTasks）
+- **局部修复会引入新 Bug**：修 A 后必须回归测 B、C
+- **ID 匹配是最常见的坑**：JS 里的 getElementById 必须与 HTML 中的 id 完全一致
+- **CSS !important 是毒药**：尽量不用，用了会导致后续样式不生效
+- **任务卡描述必须精确**：写函数名/行号/HTML 结构，不要写"修复 XX"
 
----
+## 🏗️ 项目结构
 
-## 📁 项目结构
+```
+/root/network-discovery/
+├── app/
+│   ├── __init__.py
+│   ├── main.py          # FastAPI 入口
+│   ├── models.py         # SQLAlchemy 模型 (IPAsset, ScanTask, Schedule)
+│   ├── schemas.py        # Pydantic schemas
+│   ├── scanner.py        # nmap 封装
+│   └── scheduler.py      # APScheduler
+├── frontend/
+│   ├── scan.html         # 扫描页
+│   ├── tasks.html        # 扫描任务页
+│   ├── assets.html       # 资产清单
+│   └── index.html        # 仪表盘
+├── tests/
+│   ├── test_api.py
+│   ├── test_scanner.py
+│   ├── test_scheduler.py
+│   └── ui-validate.sh
+├── deploy.sh
+└── requirements.txt
+```
 
+## 🔧 当前环境
 
----
+- **服务器**: `192.168.88.94` (RockyLinux 9.7)
+- **项目路径**: `/root/network-discovery`
+- **服务运行**: Systemd (`network-discovery.service`) → Uvicorn `127.0.0.1:8000`
+- **Nginx**: 监听 800 端口，基于域名路由，需带 `Host: network-discover.irigud.com`
+- **数据库**: SQLite (`/root/network-discovery/app/network_discovery.db`)
+- **验收通道**: `curl -H "Host: network-discover.irigud.com" http://192.168.88.94:800/...`
 
-## 🛠️ 开发与 Git 规范
+## 🎨 UI 设计规范
 
-1. **Git 连续性**：
-    *   **严禁 Reinitialized existing Git repository in C:/Project/Code/网络设备发现项目/.git/**。仓库已存在，必须基于现有分支开发。
-    *   **分支策略**： (稳定) ←  (开发)。
-    *   每次 Commit 前**必须更新此文件 ()** 的当前状态部分。
-2. **测试门禁**：
-    *   开发前先跑 。
-    *   **底线**：测试用例数量只增不减。
-3. **代码质量**：
-    *   **禁止覆盖文件**：修复 Bug 时使用精确修改，禁止全文件覆盖写入。
-    *   Pydantic V2：使用  替代 。
+- 深色主题: 背景 `#0f1923`，卡片 `#1e2d3d`
+- 无实线边框，用柔和弥散阴影 + 大圆角 12px
+- Bento Grid 布局，响应式
+- 功能色：绿在线/红离线/蓝交互
+- 禁止原生 `confirm/alert/prompt`，强制自定义弹窗
 
----
+## ⏭️ 下一步方向（待确认）
 
-## 🔧 环境配置
+v0.10.2 已闭环。后续候选方向：
+1. 资产详情页（单 IP 端口/服务/OS 详情）
+2. CSV/Excel 导出
+3. 扫描任务调度编辑器优化
 
-- **服务器**:  (RockyLinux 9.7)
-- **项目路径**: 
-- **服务运行**: Systemd () → Uvicorn 4 workers :8000
-- **Nginx**: 监听 80 → 反向代理到 
-- **数据库**: SQLite () — 注意不是根目录的 
+**等待军师生成下一版本任务卡后再开始开发。**

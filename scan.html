@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描配置</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.10.2">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.10.4">
     <style>
     .btn-quick {
         padding: 6px 12px;
@@ -142,16 +142,6 @@
 
 
                     <button type="button" id="scan-btn" class="btn-primary">开始扫描</button>
-                    <!-- 扫描进度状态 -->
-                    <div id="scan-progress-area" style="display: none; margin-top: 16px; padding: 12px; background: #1a2d3d; border-radius: 8px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                            <span id="scan-progress-text" style="color: var(--accent-cyan); font-size: 14px;">扫描中...</span>
-                            <span id="scan-progress-pct" style="color: #a0aec0; font-size: 13px;">0%</span>
-                        </div>
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar" id="scan-progress-bar" style="width: 0%; height: 6px; background: var(--accent-cyan); border-radius: 3px; transition: width 0.3s;"></div>
-                        </div>
-                        <div id="scan-progress-detail" style="color: #718096; font-size: 12px; margin-top: 6px;"></div>
                     </div>
 
                 </form>
@@ -159,7 +149,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.10.2"></script>
+    <script src="/static/js/app.js?v=0.10.4"></script>
     <script>
 
     // 快捷时间设置
@@ -338,7 +328,7 @@
         return true;
     }
 
-    // 扫描按钮事件 - 直接执行（脚本在 body 结尾，DOM 已存在）
+    // 扫描按钮事件 - 带 null 检查（脚本在 body 结尾，DOM 已存在）
     (function() {
         var scanBtn = document.getElementById('scan-btn');
         var targetInput = document.getElementById('scan-target');
@@ -367,7 +357,8 @@
             if (!validateScanTarget(target, isSingle)) return;
 
             setButtonLoading(scanBtn, true);
-
+            console.log("[SCAN] Submitting...");
+            
             var scheduleType = document.getElementById('schedule-type').value;
             var cronExpr = null;
             if (scheduleType === 'custom') {
@@ -393,9 +384,9 @@
             .then(function(data) {
                 setButtonLoading(scanBtn, false);
                 if (data.task_id) {
-                    showToast('扫描任务已创建 (#' + data.task_id.substring(0,8) + ')', 'success');
+                    console.log("[SCAN] Task created"); showToast("扫描任务已创建 (#" + data.task_id.substring(0,8) + ")", "success");
                     targetInput.value = '';
-                    taskNameInput.value = '';
+                    taskNameInput.value = ''; console.log('[SCAN] Form cleared');
                     setTimeout(function() {
                         window.location.href = '/tasks.html';
                     }, 3000);

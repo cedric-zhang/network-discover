@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 
-app = FastAPI(title="网络设备发现平台", version="0.10.2")
+app = FastAPI(title="网络设备发现平台", version="0.10.4")
 @app.on_event("startup")
 async def startup_migrate():
     """Run DB migration on startup."""
@@ -40,7 +40,7 @@ async def asset_detail(ip: str):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.10.2"}
+    return {"status": "ok", "version": "0.10.4"}
 
 # 注册 API 路由
 from app.routers import scan

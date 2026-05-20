@@ -498,7 +498,7 @@ function updateScanProgress(task) {
     var area = document.getElementById('scan-progress-area');
     if (!area) return;
 
-    area.style.display = 'block';
+    // Progress shown in tasks.html, not scan page;
 
     var pctEl = document.getElementById('scan-progress-pct');
     var barEl = document.getElementById('scan-progress-bar');

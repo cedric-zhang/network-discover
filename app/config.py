@@ -33,7 +33,7 @@ class ScanConfig:
 @dataclass
 class AppConfig:
     """Application-level configuration."""
-    version: str = "0.10.2"
+    version: str = "0.10.4"
     db_path: str = field(
         default_factory=lambda: os.getenv("DB_PATH", "data/network.db")
     )
