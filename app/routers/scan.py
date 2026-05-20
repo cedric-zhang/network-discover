@@ -104,7 +104,11 @@ async def get_scan_tasks(
                     },
                     "created_at": str(db_task.created_at),
                     "updated_at": str(db_task.updated_at),
-                    "message": db_task.result_summary or ""
+                    "message": db_task.result_summary or "",
+                    "progress": db_task.progress or 0,
+                    "current_ip": db_task.current_ip,
+                    "total_ips": db_task.total_ips,
+                    "elapsed_seconds": db_task.elapsed_seconds
                 }
             task_list.append(task_data)
         

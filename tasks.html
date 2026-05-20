@@ -859,22 +859,27 @@
     function updateCounts() {
         var counts = { all: allTasks.length, queued: 0, running: 0, completed: 0, failed: 0 };
         allTasks.forEach(function(t) {
-            // queued 标签页包含 queued 和 pending
             if (t.status === 'queued' || t.status === 'pending') counts.queued++;
-            // running 标签页包含 running 和 scanning
             else if (t.status === 'running' || t.status === 'scanning') counts.running++;
             else if (t.status === 'completed') counts.completed++;
             else if (t.status === 'failed') counts.failed++;
         });
 
-        document.getElementById('task-count').textContent = '共 ' + counts.all + ' 个扫描任务';
+        // Update count badges in tab cards
+        var el = document.getElementById('count-all');
+        if (el) el.textContent = counts.all;
+        el = document.getElementById('count-queued');
+        if (el) el.textContent = counts.queued;
+        el = document.getElementById('count-running');
+        if (el) el.textContent = counts.running;
+        el = document.getElementById('count-completed');
+        if (el) el.textContent = counts.completed;
+        el = document.getElementById('count-failed');
+        if (el) el.textContent = counts.failed;
 
-        document.querySelectorAll('.task-tab').forEach(function(tab) {
-            var filter = tab.dataset.filter;
-            var count = counts[filter];
-            tab.textContent = tab.dataset.filter === 'all' ? '全部(' + count + ')' :
-                getTabText(filter) + '(' + count + ')';
-        });
+        // Legacy
+        var tc = document.getElementById('task-count');
+        if (tc) tc.textContent = '共 ' + counts.all + ' 个扫描任务';
     }
 
     function getTabText(filter) {
