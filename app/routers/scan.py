@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
 from typing import Dict, List, Optional
 from datetime import datetime
 import uuid
-from app.models import ScanSubmitRequest, ScanTaskResponse, ScanOptions, ScanResultResponse
-from app.services.task_manager import task_manager
+from app.models import ScanSubmitRequest, ScanTaskResponse, ScanOptions, ScanResultResponse, TaskProgressResponse
+from app.config import scan_config
 from app.services.scanner import scanner_service
+from app.services.task_manager import task_manager
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import ScanTask
@@ -248,6 +249,22 @@ async def get_scan_result(task_id: str):
     if result is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return result
+
+@router.get("/scan/tasks/{task_id}/progress", response_model=TaskProgressResponse)
+async def get_scan_progress(task_id: str):
+    """Get scan task progress."""
+    task = task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskProgressResponse(
+        task_id=task.get("task_id", task_id),
+        status=task.get("status", "unknown"),
+        progress=task.get("progress", 0),
+        current_ip=task.get("current_ip"),
+        total_ips=task.get("total_ips"),
+        elapsed_seconds=task.get("elapsed_seconds")
+    )
+
 
 @router.put("/scan/tasks/{task_id}/schedule")
 async def update_task_schedule(task_id: str, request: ScheduleRequest):

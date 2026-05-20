@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描任务</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.10.1">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.10.2">
     <style>
         .task-tabs {
             display: flex;
@@ -12,7 +12,36 @@
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-        .task-tab {
+                .task-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: var(--bg-card);
+            transition: background 0.2s;
+            min-width: 70px;
+        }
+        .task-tab .tab-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .task-tab .tab-count {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .task-tab.active {
+            background: var(--accent-cyan);
+        }
+        .task-tab.active .tab-label,
+        .task-tab.active .tab-count {
+            color: #fff;
+        }
+
+        
             padding: 8px 16px;
             border-radius: 8px;
             background: var(--bg-card);
@@ -396,11 +425,11 @@
             </div>
 
             <div class="task-tabs">
-                <div class="task-tab active" data-filter="all">全部</div>
-                <div class="task-tab" data-filter="queued">排队中</div>
-                <div class="task-tab" data-filter="running">运行中</div>
-                <div class="task-tab" data-filter="completed">已完成</div>
-                <div class="task-tab" data-filter="failed">失败</div>
+                <div class="task-tab active" data-filter="all"><span class="tab-label">全部</span><span class="tab-count" id="count-all">0</span></div>
+                <div class="task-tab" data-filter="queued"><span class="tab-label">排队中</span><span class="tab-count" id="count-queued">0</span></div>
+                <div class="task-tab" data-filter="running"><span class="tab-label">运行中</span><span class="tab-count" id="count-running">0</span></div>
+                <div class="task-tab" data-filter="completed"><span class="tab-label">已完成</span><span class="tab-count" id="count-completed">0</span></div>
+                <div class="task-tab" data-filter="failed"><span class="tab-label">失败</span><span class="tab-count" id="count-failed">0</span></div>
             </div>
 
             <div id="task-list">加载中...</div>
@@ -408,7 +437,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.10.1"></script>
+    <script src="/static/js/app.js?v=0.10.2"></script>
     <script>
     var currentFilter = 'all';
     var allTasks = [];

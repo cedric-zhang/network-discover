@@ -470,19 +470,24 @@ function showChartFallback() {
 
 // ===== 扫描进度跟踪 =====
 function startScanProgressTracking() {
+    // Track last submitted scan task for progress
     var pollInterval = 3000;
 
     async function checkScanStatus() {
         try {
-            var response = await fetch('/api/scan/tasks');
+            var response = await fetch('/api/scan/tasks?page=1&page_size=3');
             var data = await response.json();
-            var activeScan = data.tasks.find(function(t) { return t.status === 'scanning'; });
+            if (!data.tasks || data.tasks.length === 0) return;
 
-            if (activeScan) {
+            var activeScan = data.tasks.find(function(t) {
+                return t.status === 'scanning' || t.status === 'running';
+            });
+
+            if (activeScan && activeScan.task_id) {
                 updateScanProgress(activeScan);
             }
         } catch (e) {
-            console.error('Failed to check scan status:', e);
+            console.error('Progress check failed:', e);
         }
     }
 
@@ -490,10 +495,43 @@ function startScanProgressTracking() {
 }
 
 function updateScanProgress(task) {
-    var statusEl = document.getElementById('scan-status');
-    if (statusEl) {
-        statusEl.textContent = task.status;
-        statusEl.className = 'status-badge ' + (task.status === 'completed' ? 'online' : 'scanning');
+    var area = document.getElementById('scan-progress-area');
+    if (!area) return;
+
+    area.style.display = 'block';
+
+    var pctEl = document.getElementById('scan-progress-pct');
+    var barEl = document.getElementById('scan-progress-bar');
+    var textEl = document.getElementById('scan-progress-text');
+    var detailEl = document.getElementById('scan-progress-detail');
+
+    var progress = task.progress || 0;
+    var currentIp = task.current_ip || '';
+    var totalIps = task.total_ips || 0;
+    var elapsed = task.elapsed_seconds || 0;
+
+    if (pctEl) pctEl.textContent = progress + '%';
+    if (barEl) barEl.style.width = (progress > 0 ? progress : 5) + '%';
+
+    if (task.status === 'completed') {
+        if (textEl) textEl.textContent = '扫描完成';
+        if (pctEl) pctEl.textContent = '100%';
+        if (barEl) barEl.style.width = '100%';
+        if (detailEl) detailEl.textContent = '已发现主机';
+        setTimeout(function() { if (area) area.style.display = 'none'; }, 5000);
+    } else if (task.status === 'failed') {
+        if (textEl) textEl.textContent = '扫描失败';
+        if (detailEl) detailEl.textContent = task.message || task.error || '未知错误';
+        setTimeout(function() { if (area) area.style.display = 'none'; }, 10000);
+    } else {
+        var statusText = '扫描中...';
+        if (currentIp) statusText += ' 当前: ' + currentIp;
+        if (textEl) textEl.textContent = statusText;
+
+        var detail = '';
+        if (totalIps > 0) detail += '共 ' + totalIps + ' 个IP';
+        if (elapsed > 0) detail += ' | 已用时 ' + Math.round(elapsed) + '秒';
+        if (detailEl) detailEl.textContent = detail;
     }
 }
 
