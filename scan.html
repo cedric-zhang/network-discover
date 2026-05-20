@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>网络设备发现平台 - 扫描配置</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=0.10.1">
+    <link rel="stylesheet" href="/static/css/style.css?v=0.10.2">
     <style>
     .btn-quick {
         padding: 6px 12px;
@@ -110,6 +110,15 @@
                         </div>
                     </div>
 
+                    
+                    <!-- 预估时间提示 -->
+                    <div id="eta-hint" class="eta-hint" style="margin-top: 16px; padding: 12px 16px; background: #1a2d3d; border-radius: 8px; border-left: 3px solid var(--accent-cyan);">
+                        <span style="color: var(--accent-cyan); font-size: 14px;">🕐 预计扫描时间</span>
+                        <div id="eta-text" style="color: #a0aec0; font-size: 13px; margin-top: 4px;">
+                            请选择扫描目标和选项
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <div class="form-label">调度方式</div>
                         <select class="select" id="schedule-type">
@@ -133,12 +142,24 @@
 
 
                     <button type="button" id="scan-btn" class="btn-primary">开始扫描</button>
+                    <!-- 扫描进度状态 -->
+                    <div id="scan-progress-area" style="display: none; margin-top: 16px; padding: 12px; background: #1a2d3d; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <span id="scan-progress-text" style="color: var(--accent-cyan); font-size: 14px;">扫描中...</span>
+                            <span id="scan-progress-pct" style="color: #a0aec0; font-size: 13px;">0%</span>
+                        </div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="scan-progress-bar" style="width: 0%; height: 6px; background: var(--accent-cyan); border-radius: 3px; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="scan-progress-detail" style="color: #718096; font-size: 12px; margin-top: 6px;"></div>
+                    </div>
+
                 </form>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=0.10.1"></script>
+    <script src="/static/js/app.js?v=0.10.2"></script>
     <script>
 
     // 快捷时间设置
@@ -191,6 +212,81 @@
             preview.textContent = "";
         }
     }
+
+
+    // === 预估时间提示 ===
+    function updateEtaHint() {
+        var etaText = document.getElementById('eta-text');
+        if (!etaText) return;
+
+        var target = document.getElementById('scan-target').value.trim();
+        var portScan = document.getElementById('portScan').checked;
+        var osDetect = document.getElementById('osDetect').checked;
+        var vendorDetect = document.getElementById('vendorDetect').checked;
+
+        if (!target) {
+            etaText.textContent = '请输入扫描目标以查看预估时间';
+            return;
+        }
+
+        var isCidr = target.includes('/');
+        var totalIps = 1;
+        if (isCidr) {
+            var parts = target.split('/');
+            if (parts.length === 2) {
+                var prefix = parseInt(parts[1]);
+                if (!isNaN(prefix)) totalIps = Math.pow(2, 32 - prefix);
+            }
+        }
+
+        var perIpSec = 2;  // base ping scan
+        if (portScan) perIpSec += 3;
+        if (osDetect) perIpSec += 5;
+        if (vendorDetect) perIpSec += 8;
+
+        var totalSec = totalIps * perIpSec / 4;  // concurrency factor
+        var totalMin = Math.round(totalSec / 60);
+
+        var lines = [];
+        if (isCidr) {
+            lines.push('目标: ' + target + ' (约 ' + totalIps + ' 个IP)');
+            var baseMin = Math.round(totalIps * 2 / 60);
+            lines.push('· 基础扫描: ~' + formatEtaTime(baseMin));
+            if (portScan) {
+                var pm = Math.round(totalIps * 5 / 60);
+                lines.push('· +端口扫描: ~' + formatEtaTime(pm));
+            }
+            if (osDetect) {
+                var om = Math.round(totalIps * 10 / 60);
+                lines.push('· +OS识别: ~' + formatEtaTime(om));
+            }
+            if (vendorDetect) {
+                var vm = Math.round(totalIps * 18 / 60);
+                lines.push('· +厂商识别: ~' + formatEtaTime(vm));
+            }
+        } else {
+            lines.push('目标: ' + target + ' (单IP)');
+            var sec = perIpSec;
+            lines.push('· 预计耗时: ~' + sec + ' 秒');
+        }
+        lines.push('· 全量预估: ' + formatEtaTime(totalMin));
+
+        etaText.innerHTML = lines.join('<br>');
+    }
+
+    function formatEtaTime(minutes) {
+        if (minutes < 1) return '不到 1 分钟';
+        if (minutes < 60) return '约 ' + minutes + ' 分钟';
+        var h = Math.floor(minutes / 60);
+        var m = minutes % 60;
+        return '约 ' + h + ' 小时' + (m > 0 ? ' ' + m + ' 分钟' : '');
+    }
+
+    // 监听输入变化
+    document.getElementById('scan-target').addEventListener('input', updateEtaHint);
+    document.getElementById('portScan').addEventListener('change', updateEtaHint);
+    document.getElementById('osDetect').addEventListener('change', updateEtaHint);
+    document.getElementById('vendorDetect').addEventListener('change', updateEtaHint);
 
     // 调度方式切换
     function toggleDatetimeGroup() {

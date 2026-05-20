@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 import ipaddress
 import re
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean, Float
 from app.database import Base
 
 
@@ -78,6 +78,17 @@ class ScanTaskResponse(BaseModel):
     scan_options: ScanOptions
     created_at: str
     updated_at: str
+    progress: Optional[int] = 0
+    current_ip: Optional[str] = None
+    total_ips: Optional[int] = None
+    elapsed_seconds: Optional[float] = None
+class TaskProgressResponse(BaseModel):
+    task_id: str
+    status: str
+    progress: int = 0
+    current_ip: Optional[str] = None
+    total_ips: Optional[int] = None
+    elapsed_seconds: Optional[float] = None
     message: Optional[str] = None
 
 
@@ -102,6 +113,14 @@ class IPAsset(Base):
     last_scan_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class TaskProgressResponse(BaseModel):
+    task_id: str
+    status: str
+    progress: int = 0
+    current_ip: Optional[str] = None
+    total_ips: Optional[int] = None
+    elapsed_seconds: Optional[float] = None
+
 
 class Schedule(Base):
     __tablename__ = "schedules" 
@@ -124,5 +143,9 @@ class ScanTask(Base):
     target = Column(String)
     status = Column(String, default="pending")
     result_summary = Column(String, nullable=True)
+    progress = Column(Integer, default=0, nullable=True)
+    current_ip = Column(String, nullable=True)
+    total_ips = Column(Integer, nullable=True)
+    elapsed_seconds = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
