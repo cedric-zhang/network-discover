@@ -4,6 +4,12 @@ from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 
 app = FastAPI(title="网络设备发现平台", version="0.10.2")
+@app.on_event("startup")
+async def startup_migrate():
+    """Run DB migration on startup."""
+    from app.database import migrate_tables
+    migrate_tables()
+
 
 # 挂载静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
