@@ -119,6 +119,14 @@
             height: 8px;
             border-radius: 50%;
         }
+                .status-badge-sm {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
         .status-queued { background: #f59e0b; }
         .status-running { background: #3b82f6; animation: pulse 1.5s infinite; }
         .status-completed { background: #22c55e; }
@@ -450,25 +458,23 @@
     var totalPagesFromAPI = 1;   // API返回的总页数
 
     function loadTasks() {
+        // Always fetch all tasks for accurate counts, filter in UI
         var url = '/api/scan/tasks?page=' + currentPage + '&page_size=' + pageSize;
-        if (currentFilter !== 'all') {
-            url += '&status=' + currentFilter;
-        }
-        
         fetch(url)
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            allTasks = data.tasks || [];
-            totalTasks = data.total || 0;
-            totalPagesFromAPI = data.total_pages || 1;
-            renderTasks();
-            updateCountsFromAPI();
-        })
-        .catch(function(err) {
-            console.error('加载任务失败:', err);
-            document.getElementById('task-list').innerHTML =
-                '<div class="empty-state-task">加载失败，请刷新页面</div>';
-        });
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                totalTasks = data.total;
+                totalPagesFromAPI = data.total_pages;
+                allTasks = data.tasks || [];
+                updateCounts();
+                renderTasks();
+                bindDeleteEvents();
+                bindCheckboxEvents();
+                updateSelectedCount();
+            })
+            .catch(function(err) {
+                console.error('Failed to load tasks:', err);
+            });
     }
     
     function updateCountsFromAPI() {
